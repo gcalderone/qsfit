@@ -1,0 +1,95 @@
+The SWIRE template library
+--------------------------
+
+
+The SWIRE template library contains 25 templates including 3 ellipticals, 7
+spirals, 6 starbursts, 7 AGNs (3 type 1 AGNs, 4 type 2 AGNs), and 2
+composite (starburst+AGN) templates covering the wavelength range between
+1000 Angstrom and 1000 micron. The elliptical, spiral and starburst
+templates, were generated with the GRASIL code (Silva et al. 1998). The 7
+spirals range from early to late types (S0-Sdm), the starburst templates
+correspond to the SEDs of NGC 6090, NGC 6240, M 82, Arp 220, IRAS
+22491-1808, and IRAS 20551-4250.  In all of the spirals and starburst
+templates the spectral region between 5 and 12 micron, where many broad
+emission and absorption features are observed, was replaced using observed
+IR spectra from the PHT-S spectrometer on the Infrared space Observatory and
+from IRS on Spitzer.
+
+Templates of moderately luminous AGN, representing Seyfert 1.8 and Seyfert 2
+galaxies, were obtained by combining models, broad-band photometric data
+(NED), and ISO-PHT-S spectra (Schulz, private communication) of a random
+sample of 28 Seyfert galaxies. The other six AGN templates include three
+templates representing optically-selected QSOs with different values of
+infrared/optical flux ratios (QSO1, TQSO1, and BQSO1) and two type 2 QSO
+(QSO2 and Torus). The QSO1 templates are derived by combining the SDSS
+quasar composite spectrum and rest-frame infrared data of a sample of 35
+SDSS/SWIRE (Hatziminaoglou et al. 2005). After normalizing each SED in the
+optical, we derived three templates with the same optical spectrum but three
+different IR SEDs. The QSO1 IR template was obtained from the average fluxes
+of all the measurements regrouped in wavelength bins, the TQSO1 IR template
+was obtained from the highest 25% measurements per bin, and the BQSO1 IR
+template was obtained from the lowest 25% measurements per bin. The type 2
+QSO template (QSO2) was obtained by combining the observed optical/near-IR
+spectrum of the red quasar FIRST J013435.7-093102 (Gregg et al. 2002) and
+the rest-frame IR data from the quasars in the Palomar-Green sample with
+consistent optical SEDs. The other type 2 QSO template (Torus) corresponds
+to the model used to fit the SED of a heavily obscured type 2 QSO,
+SWIRE_J104409.95+585224.8 (Polletta et al. 2006).
+
+The composite (AGN+SB) templates are empirical templates created to fit the
+SEDs of the following objects: the heavily obscured BAL QSO Mrk 231 (Berta
+2005, Ph.D. Thesis), the Seyfert 2 galaxy IRAS 19254-7245 South (Berta et
+al. 2003). These objects contain a powerful starburst component, mainly
+responsible for their large infrared luminosities and an AGN component that
+contributes to the mid-IR luminosities.
+
+The SWIRE template library has been used in the following works: Polletta et
+al. 2005, ApJ submitted, Tajer et al. A&A, submitted, Siana et al. 2007, ApJ
+submitted, Polletta et al. 2006, Weedman et al. 2006, Davoodi et al. 2006a,
+2006b, Jarrett et al. 2006, Hatziminaoglou et al. 2005, Franceschini et al.
+2005, Lonsdale et al. 2004. 
+
+For each template a file with 2 columns is given (1st col.: wavelength in
+Angstrom, 2nd col: normalized at 5500 Angstrom F_lambda in erg cm-2 s-1
+A-1). A description of each template is given below. 
+
+
+From GRASIL  (Silva et al. 1998, ApJ, 509, 103)
+-----------------------------------------------
+Ell2: 2 Gyr old elliptical (Silva et al. 1998, ApJ, 509, 103)
+Ell5: 5 Gyr old elliptical
+Ell13: 13 Gyr old elliptical
+S0: Spiral 0 (PAH modified using IRS spectra of normal galaxies)
+Sa: Spiral a (PAH modified using IRS spectra of normal galaxies)
+Sb: Spiral b (PAH modified using IRS spectra of normal galaxies)
+Sc: Spiral c (PAH modified using IRS spectra of normal galaxies)
+Sdm: Spiral dm (PAH modified using IRS spectra of normal galaxies)
+Spi4: Spiral c (PAH modified using IRS spectra of normal galaxies)
+M82: Starburst galaxy M82 (PAH modified using ISO spectrum)
+N6090: Starburst galaxy NGC 6090 (PAH modified using ISO spectrum)
+Arp220: Starburst galaxy Arp 220 (ULIRG) (PAH modified using IRS spectrum)
+
+From Berta, S. PhD Thesis, Padua Univ.
+I20551:
+I22491:
+Mrk231: BAL QSO, Seyfert 1, ULIRG Mrk 231 (includes IRS spectrum)
+
+
+References
+
+Berta, S. 2005, Ph.D. Thesis, Padua University, Italy
+Berta, S. et al. 2003, A&A, 403, 119
+Brotherton M.S. et al. 2001, ApJ, 546, 775
+Davoodi, P. et al. 2006a,  MNRAS, 371, 1113
+Davoodi, P. et al. 2006b, AJ, 132, 1818
+Franceschini, A. et al. 1005, AJ, 129, 2074
+Gregg, M.D. et al. 2002, ApJ, 564, 133
+Hatziminaoglou E. et al. 2005, AJ, 129, 119
+Jarrett, T.H., Polletta, M. et al. 2006, AJ, 131, 261 
+Lonsdale, C., Polletta, M. et al. 2004, ApJS, 154, 54
+Polletta, M. et al. 2006, ApJ, 642, 673
+Polletta, M. et al. 2007, ApJ submitted
+Siana, B., Polletta, M. et al. 2007, ApJ submitted
+Silva, L. et al. 1998, ApJ, 509, 103
+Tajer, M., Polletta, M. et al. A&A, submitted
+Weedman, D., Polletta, M. et al. 2006, 653, 101

@@ -1,0 +1,237 @@
+GFIT: a framework to perform least-squares minimization.
+----------------------------------------------------------------------
+
+GFIT is an IDL framework to perform least-squares minimization by
+comparing a model and one (or more) data set(s).  GFIT relies on the
+MPFIT minimization routine by Craig Markwardt
+(http://www.physics.wisc.edu/~craigm/idl/fitting.html).
+
+GFIT is part of GLIB, see https://github.com/gcalderone/glib for
+installation instructions.  **GLIB** is free software: you can
+redistribute it and/or modify it under the terms of the GPL (see the
+COPYING file for more details).
+
+GFIT and GLIB have been developed by Giorgio Calderone
+(giorgio.calderone@gmail.com).
+
+
+
+
+----------------------------------------------------------------------
+INTRODUCTION
+
+The GFIT package aims to facilitate the process of fitting complex
+models against complex data sets, while retaining a neat and simple
+IDL syntax.  The idea is to provide a fitting engine similar to
+software packages such as XSPEC or CIAO/Sherpa (although significantly
+less sophisticated).
+
+Basically: the user loads one (or more) data set(s) into GFIT, define
+a reasonable model by combining any number of "components", and run
+the fit to find the best estimate of model parameters.
+
+Unlike the X-ray fitting packages XSPEC and CIAO/Sherpa, GFIT is not
+specialized to any particular field (such as X-ray data analysis) or
+instrument, and can accomodate experimental data from any source
+available in IDL.  Note however that GFIT currently handles only data
+with "Gaussian" uncertainties.
+
+The main features of GFIT are:
+
+- multiple data set simultaneous fitting;
+
+- the model definition is actually an IDL mathematical expression
+  involving "components" (i.e. the basic blocks which builds up the
+  model) and any IDL function returning a scalar or array of numbers;
+
+- GFIT provides 3 basic components: a single-value component, a
+  Gaussian profile, and a power law.  The components are actually IDL
+  functions, hence the user may implement new components for specific
+  purposes;
+
+- each component has one or more parameters which will be varied
+  during the fit process to find the best agreement between the model
+  and data.  Each parameter value can be either freezed, limited in
+  range, or tied to other parameter value(s).  The tie expressions are
+  mathematical IDL expressions;
+
+- beyond the model, the user can define secondary expressions
+  involving the same components as the main model.  Such expressions
+  (to be evaluated on demand) may be used to calculate interesting
+  quantities based on the current model parameters;
+
+- GFIT writes and compiles its own IDL code to evaluate the model and
+  secondary expressions, in order to provide the best possible
+  performance during the fitting process;
+
+- GFIT can be used either interactively (as you would do with, e.g.,
+  XSPEC) or in IDL programs;
+
+- GFIT is able to produces standard reports to show the model
+  definition and the best fit model parameters, and plots to visually
+  compare the model and data and show the residuals;
+
+- The whole GFIT status is stored in a IDL structure named "GFIT",
+  contained in a common block, also named GFIT.  Hence it is very
+  simple to save current state (even in a file) and restore it in a
+  later time.
+
+
+
+----------------------------------------------------------------------
+GFIT USAGE
+
+Before discussing in detail the steps involved in a typical GFIT
+session I recommend to have a quick look to one of the examples in the
+"gfit/examples" directory before reading this section.
+
+In the following I will mention all the most relevant GFIT routines
+used throughout a GFIT session.  The documentation for each routine
+can be found in the corresponding ".pro" file.
+
+The basic steps involved in a typical GFIT session are:
+
+1 - In a typical usage the user gain access to the "GFIT" common block
+  to directly modify the "GFIT" structure to, e.g., modify a guess
+  parameter value, (un)freeze/(un)tie a model parameter, modify a
+  model/secondary expressions, etc...
+
+  To gain access to the common block the user code should simply
+  state:
+
+    COMMON GFIT
+
+  at its beginning.
+
+2 - GFIT Initialization:
+  Performed by calling "gfit_init".  This call erases any previous
+  defined model and data present in the GFIT structure, and prepare
+  GFIT for a new session.
+
+3 - Data insertion:
+  Data are inserted into GFIT by calling the "gfit_add_data"
+  procedure.  Each data set must have an independent quantity (X), a
+  dependent quantity (Y) and an associated uncertainty (E).  The GFIT
+  model will be evaluated on all the provided X values, and the model
+  results will be compared with the provided Y values.
+
+  If multiple data sets are available they can all be inserted at the
+  beginning, or gradually by performing a fit between one data set and
+  the other.  All data sets are stored within the "GFIT.data"
+  structure.  Each data set has a name, either provided by the user
+  (ith the LABEL= keyword) or automatically generated by GFIT.
+
+4 - Model definition:
+  To define a model the user should add one (or more) components.  New
+  component are added by calling the "gfit_add_comp" procedure.  Each
+  component has a name and a type: the name will be used in the model
+  mathematical expression to refer to a specific component; the type
+  is used to identify the appropriate IDL function to evaluate the
+  component value.  Each component must have a unique name, but there
+  can be several component of the same type.
+
+  The component type is provided through the "TYPE=" keyword to
+  "gfit_add_comp".  It can be either a string with the name of a
+  component (actually the name of the IDL function which implement the
+  function) or a structure as returned by "gfit_component".  Passing a
+  structure, instead of a string, results in a faster execution.
+
+  After all components have been added the user should setup the
+  appropriate mathematical expression to combine the components and
+  evaluate the final model.  The component names may be used in the
+  expression to refer to the result of a specific component.
+
+  There must be a model expression for each data set.  The expression
+  is inserted by modifiying the "GFIT.expr" structure.
+
+5 - Prepare the guess parameter values:
+  Guess values for the parameters are required to avoid GFIT stopping
+  with a non-optimal solution.  Guess values should be as close as
+  possible to the expected final values of the parameters.
+
+  Guess parameters are inserted by modifying the "GFIT.comp"
+  structure.
+
+  Parameters may be freezed, limited or tied, by modifying the
+  appropriate substructure of "GFIT.comp".
+
+6 - Add secondary expressions:
+  Secondary expressions may be added using the "gfit_add_expr"
+  procedure.  Such expressions will not be evaluated at each step of
+  the fitting process to save computation time.  Evaluation only occurs
+  when the user explicitly calls "gfit_eval, EXPR=".
+
+7 - Compile the GFIT model:
+
+  To provide the best performances GFIT writes and compile by itslef
+  the IDL code required to evaluate the model.  To compile model the
+  user should call the "gfit_compile" procedure.
+
+  Note that the model must be recompiled each time the user adds a
+  component, change the model expressions, add a secondary expression
+  or enable/disable a component.
+
+8 - Run the fit:
+  The fitting process is started by calling the "gfit_run" procedure.
+
+9 - Check the result of the fit:
+  The "gfit_report" procedure prints the current GFIT status, the best
+  fit values of the parameter and their uncertainties, as well as the
+  fit statistic (actually, the chi-squared and the probability of
+  having a worse chi-squared by random fluctuations).
+
+  The "gfit_plot" routine uses GGP to setup a plot showing the data,
+  the model, and all the defined secondary expressions.  The
+  "gfit_plot_residual" setup the plots of residuals and the cumulative
+  chi-squared curve (in red, values on the right vertical axis).  In
+  both cases a further call to "ggp" is do the plot.
+
+  The data being compared to evaluate the chi-squared are available in
+  the "GFIT.cmp" structure, while the secondary expressions may be
+  evaluated by calling "gfit_eval, expr=".
+
+10 - Further actions:
+  After fitting the data the user may wish to add new data sets, add
+  further components to the model, modify the model and/or secondary
+  expressions, change the parameter values and/or (un)freeze/(un)tie
+  them, etc..., and finally run the fit.
+
+  At each point the user may get the full list of parameters (as an
+  array of structure) using the "gfit_get_par" function.  The number
+  of free parameters may be retrieved using "gfit_free_param".
+
+  The parameter covariance matrix (returned in tabular form as an
+  array of structures) may be retrieved using the "gfit_get_covar"
+  function.
+
+  Finally, the user may save the current GFIT state by simply copying
+  the "GFIT" structure in another variable or by saving it in a file
+  (with SAVE).  To restore a GFIT status the user should call the
+  "gfit_restore" procedure, and pass the saved structure as argument.
+
+
+----------------------------------------------------------------------
+THE MODEL COMPONENTS
+
+The GFIT model components are properly defined IDL functions, see
+gfit/components/gfit_comp_example.pro for an example.  Beyond those
+available with GFIT, the user may implement new ones for specific
+purposes.
+
+Each component function must accept at least one argument, i.e. the X
+values where the component is to be evaluated, and must return a
+scalar or array of numbers.  Each component function also have further
+parameters, whose value will be varied during the fitting process to
+find the best agreement between the model and data.
+
+Individual components may be combined in a mathematical expression to
+build up a complex model by using their names (see the examples in the
+"gfit/examples" directory.
+
+The documentation for each component is reported at the beginning of
+the ".pro" file where the component function is implemented.  The
+units of the component parameters often depends on the units of the
+input data set, hence it is common to refere to the units of X and Y
+data in the input data set with "[X] units" and "[Y] units"
+respectively.
+
