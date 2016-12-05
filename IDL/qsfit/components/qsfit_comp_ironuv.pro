@@ -105,7 +105,7 @@ FUNCTION qsfit_comp_ironuv_prepare
   ref_fwhm = 900. ;;[km s^-1]
 
   ;;Grid of FWHM values
-  fwhm = 3.e3                   ;gloggen(1.e3, 2.e4, 300)
+  fwhm = gloggen(1.e3, 2.e4, 300)
 
 
   ;;Prepare an evenly spaced logarithmic wavelength grid
