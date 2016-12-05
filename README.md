@@ -15,7 +15,5 @@ in a simple, replicable and shareable way. The whole fitting process
 is customizable for specific needs, and can be extended to analyze
 spectra from other data sources.
 
-The website is: [http://qsfit.inaf.it](http://qsfit.inaf.it).
-
-The reference paper is: TODO
+The reference website is: [http://qsfit.inaf.it](http://qsfit.inaf.it).
 
