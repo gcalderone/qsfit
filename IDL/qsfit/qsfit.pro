@@ -1,5 +1,5 @@
 ; *******************************************************************
-; Copyright (C) 2016 Giorgio Calderone
+; Copyright (C) 2016,2017 Giorgio Calderone
 ;
 ; This program is free software; you can redistribute it and/or
 ; modify it under the terms of the GNU General Public icense
@@ -28,7 +28,7 @@
 ;  The QSFIT version.
 ;
 FUNCTION qsfit_version
-  RETURN, '1.0'
+  RETURN, '1.1'
 END
 
 
@@ -112,16 +112,16 @@ PRO qsfit_spec2restframe, x, y, e, z, ebv
   qsfit_log, 'E(B-V) : ' + gn2s(ebv)
 
   ;;De-reddening
-  CCM_UNRED, [1450, 3000, 5100.], [1,1,1.], ebv, dered
+  CCM_UNRED, [1450, 3000, 5100.], [1,1,1.], DOUBLE(ebv), dered
   qsfit_log, 'Dereddening factors @ 1450, 3000, 5100 AA: ' + STRJOIN(gn2s(dered), ', ')
   CCM_UNRED, x, y, ebv, y
   CCM_UNRED, x, e, ebv, e
   gprint
 
   ;;Transform to rest-frame
-  x /= (1 + z)
-  y *= (1 + z)
-  e *= (1 + z)
+  x /= (1.d + z)
+  y *= (1.d + z)
+  e *= (1.d + z)
 
   ;;Cosmology
   cosmo = {H0: 70., Omega_m:0.3, Lambda0:0.7 } ;;S11
@@ -130,13 +130,13 @@ PRO qsfit_spec2restframe, x, y, e, z, ebv
   qsfit_log, tmp
 
   ;Luminosity distance in Gpc
-  dl = LUMDIST(z, _EXTRA=cosmo, /silent) / 1000.
+  dl = LUMDIST(z, _EXTRA=cosmo, /silent) / 1000.d
   qsfit_log, 'Redshift: ' + gn2s(z)
   qsfit_log, 'Lum. distance (Gpc): ' + gn2s(dl)
   qsfit_log
 
   ;4 * !PI * 1e-17 * (1.e9 * parsec)^2 / 10.d^42 = 1.1967452e-03
-  flux2lum = dl^2. * 1.1967452e-03
+  flux2lum = dl^2.d * 1.1967452e-03
 
   y *= flux2lum
   e *= flux2lum
@@ -266,7 +266,7 @@ PRO qsfit_prepare, filename, ID=id, Z=z, EBV=ebv
 
   ;;Get X, Y and error quantities
   xx = 10.d^fits.loglam
-  yy = fits.flux
+  yy = DOUBLE(fits.flux)
   ee = SQRT(1.d / fits.ivar)
 
   ;;Transform to rest frame.  Final units are:
@@ -292,7 +292,7 @@ PRO qsfit_prepare, filename, ID=id, Z=z, EBV=ebv
 
   ;;Ignore data below emission lines with insufficient coverage.
   ;;Note: this steps must be performed before adding components since
-  ;;some of them relyon the assumption that the X values do not vary
+  ;;some of them rely on the assumption that the X values do not vary
   ;;between one call and the other.
   qsfit_ignore_data_on_missing_lines
 
@@ -401,14 +401,14 @@ PRO qsfit_freeze, cont=cont, iron=iron, lines=lines
   ENDIF
 
   IF (N_ELEMENTS(iron) EQ 1) THEN BEGIN
-     gfit.comp.ironuv0.norm.fixed     = iron
-     gfit.comp.ironuv0.fwhm.fixed     = 1
-     gfit.comp.ironuv1.norm.fixed     = iron
-     gfit.comp.ironuv1.fwhm.fixed     = 1
-     gfit.comp.ironuv2.norm.fixed     = iron
-     gfit.comp.ironuv2.fwhm.fixed     = 1
-     gfit.comp.ironuv3.norm.fixed     = iron
-     gfit.comp.ironuv3.fwhm.fixed     = 1
+     gfit.comp.ironuv0.norm.fixed    = iron
+     gfit.comp.ironuv0.fwhm.fixed    = 1
+     gfit.comp.ironuv1.norm.fixed    = iron
+     gfit.comp.ironuv1.fwhm.fixed    = 1
+     gfit.comp.ironuv2.norm.fixed    = iron
+     gfit.comp.ironuv2.fwhm.fixed    = 1
+     gfit.comp.ironuv3.norm.fixed    = iron
+     gfit.comp.ironuv3.fwhm.fixed    = 1
      gfit.comp.ironopt.norm_br.fixed = iron
      gfit.comp.ironopt.fwhm_br.fixed = 1
      gfit.comp.ironopt.norm_na.fixed = iron
@@ -499,7 +499,7 @@ PRO qsfit_add_continuum
   continuum.x0.limits = mm[0] + (mm[1]-mm[0]) / 5. * [1, 4]
   continuum.x0.fixed  = 0
 
-  continuum.alpha1.val = -2
+  continuum.alpha1.val = -1.5
   continuum.alpha1.limits = [-3, 1.] ;--> -3, 1 in frequency
 
   continuum.dalpha.val    = 0
@@ -525,6 +525,12 @@ PRO qsfit_add_continuum
   ;;gfit.comp.galaxy.opt.id = 'SWIRE_ARP220'
 
   gfit.comp.galaxy.norm.val = INTERPOL(gfit.cmp.(0).y, gfit.cmp.(0).x, 5500) > 1.e-4
+
+  ;;If 5500 is outisde the available range compute value at the edge
+  ;;(solve problems for e.g., spec-0411-51817-0198)
+  IF (MAX(gfit.data.(0).x) LT 5500) THEN $
+     gfit.comp.galaxy.norm.val = INTERPOL(gfit.cmp.(0).y, gfit.cmp.(0).x, MAX(gfit.data.(0).x)) > 1.e-4
+
   gfit.comp.galaxy.norm.limits = [0, gnan()]
   gfit.comp.galaxy.norm.fixed = 0
 
@@ -659,38 +665,39 @@ FUNCTION qsfit_lineset
 
   all = LIST()
 
-  ;;CUSTOMIZABLE (see https://ned.ipac.caltech.edu/level5/Netzer/Netzer2_1.html)
-  ;;str.name = 'Lyb'    & str.wave = 1026  &  str.type = 'BN' & all.add, str
-  ;;str.name = 'OVI'    & str.wave = 1035  &  str.type = 'N'  & all.add, str
-  ;;str.name = 'Lya'    & str.wave = 1216  &  str.type = 'BN' & all.add, str
-  ;;str.name = 'NV'     & str.wave = 1240  &  str.type = 'B'  & all.add, str
-  ;;str.name = 'OI'     & str.wave = 1304  &  str.type = 'B'  & all.add, str
-  ;;str.name = 'CII'    & str.wave = 1336  &  str.type = 'B'  & all.add, str
-    str.name = 'SiIV'   & str.wave = 1400  &  str.type = 'B'  & all.add, str
-    str.name = 'CIV'    & str.wave = 1549  &  str.type = 'B'  & all.add, str
-  ;;str.name = 'HeII'   & str.wave = 1640  &  str.type = 'B'  & all.add, str
-  ;;str.name = 'OIII'   & str.wave = 1663  &  str.type = 'B'  & all.add, str
-  ;;str.name = 'AlIII'  & str.wave = 1857  &  str.type = 'B'  & all.add, str
-  ;;str.name = 'SiIII'  & str.wave = 1892  &  str.type = 'B'  & all.add, str
-    str.name = 'CIII'   & str.wave = 1909  &  str.type = 'B'  & all.add, str;;CIII]
-  ;;str.name = 'CII'    & str.wave = 2326  &  str.type = 'B'  & all.add, str
-    str.name = 'MgII'   & str.wave = 2798  &  str.type = 'B'  & all.add, str
-    str.name = 'NeV'    & str.wave = 3426  &  str.type = 'N'  & all.add, str;;[NeV]
-    str.name = 'OII'    & str.wave = 3727  &  str.type = 'N'  & all.add, str;;[OII]
-    str.name = 'NeIII'  & str.wave = 3869  &  str.type = 'N'  & all.add, str;;[NeIII]
-    str.name = 'Hd'     & str.wave = 4102  &  str.type = 'B'  & all.add, str
-    str.name = 'Hg'     & str.wave = 4341  &  str.type = 'B'  & all.add, str
-  ;;str.name = 'HeII'   & str.wave = 4686  &  str.type = 'B'  & all.add, str
-    str.name = 'Hb'     & str.wave = 4861  &  str.type = 'BN' & all.add, str
-    str.name = 'OIII'   & str.wave = 4959  &  str.type = 'N'  & all.add, str;;[OIII]
-    str.name = 'OIII'   & str.wave = 5007  &  str.type = 'N'  & all.add, str;;[OIII]
-  ;;str.name = 'NI'     & str.wave = 5199  &  str.type = 'N'  & all.add, str
-    str.name = 'HeI'    & str.wave = 5876  &  str.type = 'B'  & all.add, str
-    str.name = 'NII'    & str.wave = 6548  &  str.type = 'N'  & all.add, str;;[NII]
-    str.name = 'Ha'     & str.wave = 6563  &  str.type = 'BN' & all.add, str
-    str.name = 'NII'    & str.wave = 6584  &  str.type = 'N'  & all.add, str;;[NII]
-    str.name = 'SII'    & str.wave = 6716  &  str.type = 'N'  & all.add, str;;[SII]
-    str.name = 'SII'    & str.wave = 6731  &  str.type = 'N'  & all.add, str;;[SII]
+  ;;CUSTOMIZABLE, see:
+  ;; - http://classic.sdss.org/dr6/algorithms/linestable.html
+  ;; - https://ned.ipac.caltech.edu/level5/Netzer/Netzer2_1.html
+  ;; - http://www.star.ucl.ac.uk/~msw/lines.html
+  ;;str.name = 'OVI'         & str.wave = 1033.82   &  str.type = 'N'  & all.add, str
+  ;;str.name = 'Lya'         & str.wave = 1215.24   &  str.type = 'BN' & all.add, str
+  ;;str.name = 'NV'          & str.wave = 1240.81   &  str.type = 'B'  & all.add, str
+  ;;str.name = 'OI'          & str.wave = 1305.53   &  str.type = 'B'  & all.add, str
+  ;;str.name = 'CII'         & str.wave = 1335.31   &  str.type = 'B'  & all.add, str
+    str.name = 'SiIV_1400'   & str.wave = 1399.8    &  str.type = 'B'  & all.add, str
+    str.name = 'CIV_1549'    & str.wave = 1549.48   &  str.type = 'B'  & all.add, str
+  ;;str.name = 'HeII'        & str.wave = 1640.4    &  str.type = 'B'  & all.add, str
+  ;;str.name = 'OIII'        & str.wave = 1665.85   &  str.type = 'B'  & all.add, str
+  ;;str.name = 'AlIII'       & str.wave = 1857.4    &  str.type = 'B'  & all.add, str
+    str.name = 'CIII_1909'   & str.wave = 1908.734  &  str.type = 'B'  & all.add, str;;CIII]
+  ;;str.name = 'CII'         & str.wave = 2326.0    &  str.type = 'B'  & all.add, str
+    str.name = 'MgII_2798'   & str.wave = 2799.117  &  str.type = 'B'  & all.add, str
+  ;;str.name = 'NeV'         & str.wave = 3346.79   &  str.type = 'N'  & all.add, str ;;[NeV]
+    str.name = 'NeVI_3426'   & str.wave = 3426.85   &  str.type = 'N'  & all.add, str;;[NeVI]
+    str.name = 'OII_3727'    & str.wave = 3729.875  &  str.type = 'N'  & all.add, str;;[OII]  ;was 3727.09
+    str.name = 'NeIII_3869'  & str.wave = 3869.81   &  str.type = 'N'  & all.add, str;;[NeIII]
+    str.name = 'Hd'          & str.wave = 4102.89   &  str.type = 'B'  & all.add, str
+    str.name = 'Hg'          & str.wave = 4341.68   &  str.type = 'B'  & all.add, str
+  ;;str.name = 'HeII'        & str.wave = ????      &  str.type = 'B'  & all.add, str
+    str.name = 'Hb'          & str.wave = 4862.68   &  str.type = 'BN' & all.add, str
+    str.name = 'OIII_4959'   & str.wave = 4960.295  &  str.type = 'N'  & all.add, str;;[OIII]
+    str.name = 'OIII_5007'   & str.wave = 5008.240  &  str.type = 'N'  & all.add, str;;[OIII]
+    str.name = 'HeI_5876'    & str.wave = 5877.30   &  str.type = 'B'  & all.add, str
+    str.name = 'NII_6549'    & str.wave = 6549.86   &  str.type = 'N'  & all.add, str;;[NII]
+    str.name = 'Ha'          & str.wave = 6564.61   &  str.type = 'BN' & all.add, str
+    str.name = 'NII_6583'    & str.wave = 6585.27   &  str.type = 'N'  & all.add, str;;[NII]
+    str.name = 'SII_6716'    & str.wave = 6718.29   &  str.type = 'N'  & all.add, str;;[SII]
+    str.name = 'SII_6731'    & str.wave = 6732.67   &  str.type = 'N'  & all.add, str;;[SII]
 
   RETURN, all.toArray()
 END
@@ -716,11 +723,10 @@ PRO qsfit_ignore_data_on_missing_lines
 
   ;;Get the list of lines to consider
   lines = qsfit_lineset()
-  lines.name += '_' + gn2s(lines.wave)
 
   FOR i=0, gn(lines)-1 DO BEGIN
      ;;Estimate line coverage
-     coverage = qsfit_line_coverage(lines[i].wave, (lines[i].type EQ 'N' ? 1e3 : 1e4), total=toBeIgnored)
+     coverage = qsfit_line_coverage(lines[i].wave, (lines[i].type EQ 'N' ? 1e3 : 1.2e4), total=toBeIgnored)
      qsfit_log, 'The line ' + lines[i].name + ' has a coverage of ' + STRING(coverage)
 
      ;;Ensure that the whole line has at least 60% of "good" channels
@@ -767,7 +773,6 @@ PRO qsfit_add_lineset
 
   ;;Get the list of lines to consider
   lines = qsfit_lineset()
-  lines.name += '_' + gn2s(lines.wave)
 
   FOR i=0, gn(lines)-1 DO BEGIN
      ;;lines[i].type EQ 'N'  ==> Narrow line
@@ -861,10 +866,12 @@ PRO qsfit_add_lineset
   gfit.plot.(0).expr_narrowlines.label = 'Narrow'
   gfit.plot.(0).expr_narrowlines.gp = 'w line ls 1 lw 2 lt rgb "dark-red"'
 
-  gfit_add_expr, 'expr_Unknown', STRJOIN('unk' + gn2s(INDGEN(qsfit_nunklines())+1), ' + ')
+  IF (qsfit_nunklines() GT 0) THEN $
+     gfit_add_expr, 'expr_Unknown', STRJOIN('unk' + gn2s(INDGEN(qsfit_nunklines())+1), ' + ') $
+  ELSE $
+     gfit_add_expr, 'expr_Unknown', '0'       
   tmp = N_TAGS(gfit.plot.(0)) - 1
   gfit.plot.(0).expr_Unknown.plot  = 0 ;;will be enabled in qsfit_add_unknown
-  gfit.plot.(0).expr_Unknown.label = 'Unknown'
   gfit.plot.(0).expr_Unknown.label = 'Unknown'
   gfit.plot.(0).expr_Unknown.gp = 'w line ls 1 lw 1 lt rgb "purple"'
 
@@ -1233,9 +1240,11 @@ END
 ;    The wavelength of the emission line to be analyzed (in
 ;    Angstrom).
 ;
-;RETURN VALUE: (a scalar structure whose template is given by qsfit_reduce_line_templ())
-;  A structure containing the luminosity, FWHM and velocity offset of
-;  an emission line, and the associated uncertainties.
+;RETURN VALUE: 
+;  (a scalar structure whose template is given by
+;  qsfit_reduce_line_templ()) A structure containing the luminosity,
+;  FWHM and velocity offset of an emission line, and the associated
+;  uncertainties.
 ;
 FUNCTION qsfit_reduce_line, cname, wave
   COMPILE_OPT IDL2
@@ -1262,7 +1271,9 @@ FUNCTION qsfit_reduce_line, cname, wave
   wave_center = center * (1. + (v_off / 3.e5))
 
   ;;Index of "unknown" lines
-  iunk = WHERE(STRMID(TAG_NAMES(gfit.comp), 0, 3) EQ 'UNK')
+  iunk = []
+  IF (qsfit_nunklines() GT 0) THEN $
+     iunk = WHERE(STRMID(TAG_NAMES(gfit.comp), 0, 3) EQ 'UNK')
 
   ;;Loop through "unknown" lines to check if an "unknown" line can be
   ;;associated to current line
@@ -1912,7 +1923,6 @@ FUNCTION qsfit_reduce
   ;;--------------------------
   ;;Reduce emission lines data
   lines = qsfit_lineset()
-  lines.name += '_' + gn2s(lines.wave)
 
   alllines = []
   FOR j=0, gn(lines)-1 DO BEGIN
