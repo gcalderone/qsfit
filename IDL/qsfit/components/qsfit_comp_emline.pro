@@ -1,5 +1,5 @@
 ; *******************************************************************
-; Copyright (C) 2016 Giorgio Calderone
+; Copyright (C) 2016,2017 Giorgio Calderone
 ;
 ; This program is free software; you can redistribute it and/or
 ; modify it under the terms of the GNU General Public icense
@@ -65,6 +65,8 @@ PRO qsfit_comp_emline_init, comp
   comp.fwhm.limits[0] = 0
 END
 
+
+
 FUNCTION qsfit_comp_emline, x, norm, center, v_off, fwhm
   COMPILE_OPT IDL2
   ON_ERROR, !glib.on_error
@@ -74,11 +76,14 @@ FUNCTION qsfit_comp_emline, x, norm, center, v_off, fwhm
   x0    = center - (v_off / 3.e5) * center
   sigma =          (fwhm  / 3.e5) * center / 2.35
 
-  exp = ((x-x0) / sigma)^2. / 2.
-  i = WHERE(exp LT 10) ;;improve performance
+  ;exp = ((x-x0) / sigma)^2. / 2.
+  ;i = WHERE(exp LT 10) ;;improve performance
+  ;line = norm * EXP( -exp[i] ) / 2.50663 / sigma ;SQRT(2*!PI) = 2.50663
 
-  ;SQRT(2*!PI) = 2.50663
-  line = norm * EXP( -exp[i] ) / 2.50663 / sigma
+  ;;improve performance (SQRT(10*2.) = 4.4721360)
+  i = WHERE(ABS(x-x0) LT 4.4721360 * sigma)
+  exp = ((x[i]-x0) / sigma)^2. / 2.  
+  line = norm * EXP( -exp ) / 2.50663 / sigma ;SQRT(2*!PI) = 2.50663
 
   retval = FLTARR(N_ELEMENTS(x))
   retval[i] = line
