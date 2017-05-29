@@ -1,2 +1,21 @@
-- Dec. 5, 2016
+- May 29, 2017  (ver. 1.1)
+	Minor updates to improve performances, accuracy of results and
+	functionalities:
+
+	+ QSFit: initial value for the continuum component slope is now
+	-1.5 (in ver. 1.0 was -2);
+
+	+ QSFit: emission lines rest frame wavelengths have been
+	corrected;
+
+	+ QSFit: solved the error occurring when the number of "unknown"
+	emission lines was 0;
+
+	+ QSFit components sbpowerlaw and emline: improved performances;
+
+	+ Default gnuplot terminal is qt (in ver. 1.0 was wxt);
+
+
+
+- Dec. 5, 2016 (ver. 1.0)
 	First commit of QSFit package

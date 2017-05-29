@@ -100,7 +100,7 @@ Here I report the main coding style rules followed in developing GLIB:
 
 
 **License**
-Copyright (C) 2015,2016 Giorgio Calderone
+Copyright (C) 2015,2017 Giorgio Calderone
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
