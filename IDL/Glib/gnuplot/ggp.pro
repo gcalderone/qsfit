@@ -50,8 +50,8 @@
 ;    The file name of the terminal output file. This string will be
 ;    prepended with "set output" and added to the list of commands.
 ;
-PRO ggp            $
-   , SPLOT=splot   $
+PRO ggp                           $
+   , SPLOT=splot                  $
    , STDOUT=stdout, GP=file_gp    $
    , TERMINAL=term, OUTPUT=file_out
   COMPILE_OPT IDL2
@@ -91,14 +91,19 @@ PRO ggp            $
 
   ;;Setup the terminal
   IF (~KEYWORD_SET(term)) THEN BEGIN
-     term = 'wxt persist'
+     ;term = 'wxt persist linewidth 2'
+     term = 'qt'
   ENDIF
   PRINTF, lun, 'set term ' + term
 
   ;;Set output file
   IF (KEYWORD_SET(file_out)) THEN BEGIN
      PRINTF, lun, 'set output "' + file_out + '"'
-  ENDIF
+  ENDIF $
+  ELSE BEGIN
+     PRINTF, lun, '#set term pdf'
+     PRINTF, lun, '#set output "idlgp.pdf"'
+  ENDELSE
 
   ;;Set grid by default
   PRINTF, lun, 'set grid'
@@ -118,6 +123,13 @@ PRO ggp            $
         PRINTF, lun, tmp
      ENDFOR
   ENDIF
+
+  IF (KEYWORD_SET(file_out)) THEN BEGIN
+     PRINTF, lun, 'set output' ;;close output file
+  ENDIF $
+  ELSE BEGIN
+     PRINTF, lun, '#set output'
+  ENDELSE
 
   IF (~KEYWORD_SET(stdout)) THEN $
      FREE_LUN, lun
