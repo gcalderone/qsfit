@@ -242,8 +242,8 @@ PRO qsfit_prepare, filename, ID=id, Z=z, EBV=ebv
   tmp = REPLICATE(gnan(), gn(fits.ivar))
   tmp[iGood] = fits[iGood].ivar
   fits.ivar = tmp
-  
-  
+
+
   ;;Prepare user data with additional info from the FITS file.
   IF (gn(id) EQ 0) THEN id = ''
 
@@ -869,7 +869,7 @@ PRO qsfit_add_lineset
   IF (qsfit_nunklines() GT 0) THEN $
      gfit_add_expr, 'expr_Unknown', STRJOIN('unk' + gn2s(INDGEN(qsfit_nunklines())+1), ' + ') $
   ELSE $
-     gfit_add_expr, 'expr_Unknown', '0'       
+     gfit_add_expr, 'expr_Unknown', '0'
   tmp = N_TAGS(gfit.plot.(0)) - 1
   gfit.plot.(0).expr_Unknown.plot  = 0 ;;will be enabled in qsfit_add_unknown
   gfit.plot.(0).expr_Unknown.label = 'Unknown'
@@ -1240,7 +1240,7 @@ END
 ;    The wavelength of the emission line to be analyzed (in
 ;    Angstrom).
 ;
-;RETURN VALUE: 
+;RETURN VALUE:
 ;  (a scalar structure whose template is given by
 ;  qsfit_reduce_line_templ()) A structure containing the luminosity,
 ;  FWHM and velocity offset of an emission line, and the associated
@@ -1765,7 +1765,7 @@ FUNCTION qsfit_reduce
       IF ((allcont[i].quality AND 2b^6) GT 0) THEN $
          slopeBiased = 1
    ENDFOR
-   
+
    IF (slopeBiased) THEN BEGIN
       FOR i=0, ncont + gn(fixed_wave)-1 DO BEGIN
          IF ((allcont[i].quality AND 2b^6) EQ 0) THEN $
@@ -1948,7 +1948,7 @@ END
 
 ;=====================================================================
 ;NAME:
-;  
+;
 PRO qsfit_plot_current, filename
   COMMON GFIT
   gfit.plot.(0).main.title = ''
@@ -2064,7 +2064,7 @@ PRO qsfit_report, red
   ON_ERROR, !glib.on_error
   COMMON GFIT
 
-  
+
   PRINT
   PRINT
   PRINT
@@ -2151,7 +2151,7 @@ PRO qsfit_plot, red, FILENAME=filename, s11=s11
   ;;Plot continuum luminosities and slopes from QSFIT
   ggp_data, red.cont.wave, red.cont.lum / red.cont.wave, red.cont.lum_err / red.cont.wave, $
             pl='w yerrorbars title "Cont. lum." pt 5 ps 1 lc rgb "red"'
-  
+
   ;;FOR i=0, gn(red.cont)-1 DO BEGIN
   ;;   xx = red.cont[i].wave * [0.98, 1.02]
   ;;   yy = (xx / red.cont[i].wave)^red.cont[i].slope
@@ -2164,7 +2164,7 @@ PRO qsfit_plot, red, FILENAME=filename, s11=s11
      xx = [1350, 3000, 5100]
      yy = [s11.logl1350, s11.logl3000, s11.logl5100]
      ll = 10.d^(yy-42) / xx
-     
+
      r0 = [1465, 2700, 4700, 6250]
      r1 = [1700, 2900, 5100, 6800]
      aa = [s11.alpha_civ, s11.alpha_mgii, s11.alpha_hb, s11.alpha_ha]
