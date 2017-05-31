@@ -429,6 +429,21 @@ PRO qsfit_freeze, cont=cont, iron=iron, lines=lines
            ENDIF
         ENDIF
      ENDFOR
+
+     ;; Fix emission line parameter values (CUSTOMIZABLE)
+     ;;gfit.comp.na_Hb.norm.val    = 0.17507
+     ;;gfit.comp.na_Hb.fwhm.val    = 505.78
+     ;;gfit.comp.na_Hb.v_off.val   = -130.34
+     ;;gfit.comp.na_Hb.norm.fixed  = 1
+     ;;gfit.comp.na_Hb.fwhm.fixed  = 1
+     ;;gfit.comp.na_Hb.v_off.fixed = 1
+     ;;
+     ;;gfit.comp.na_OIII_5007.norm.val    = 0.46382
+     ;;gfit.comp.na_OIII_5007.fwhm.val    = 604.87
+     ;;gfit.comp.na_OIII_5007.v_off.val   = -2.0543
+     ;;gfit.comp.na_OIII_5007.norm.fixed  = 1
+     ;;gfit.comp.na_OIII_5007.fwhm.fixed  = 1
+     ;;gfit.comp.na_OIII_5007.v_off.fixed = 1
   ENDIF
 END
 
@@ -880,6 +895,7 @@ PRO qsfit_add_lineset
   gfit.comp.na_OIII_4959.v_off.tied = 'na_OIII_5007.v_off'
 
   qsfit_compile
+  qsfit_freeze, line=0
 END
 
 
