@@ -1,3 +1,31 @@
+- Jul 19, 2017  (ver. 1.2)
+
+	+ QSFit now defines a global variable upon initialization, named
+	`!QSFIT_OPT`, containing several settings to customize the fitting
+	behavior.  Check the qsfit_prepare_options for further details;
+
+	+ The default host galaxy template is now SWIRE_ELL5
+	(http://www.iasf-milano.inaf.it/~polletta/templates/swire_templates.html);
+
+	+ By default, the continuum is now modeled with a single power law
+	instead of a smoothly broken power law.  To restore the old
+	behaviour set `continuum.dalpha.fixed = 0`;
+
+	+ The four parts of the UV iron template are now joined in a
+	single component;
+
+	+ QSFit now estimates the equivalent widths for the iron and
+	emission line components;
+
+	+ A Monte Carlo resampling method has been implemented to
+	accurately estimate the parameter uncertainties.  See the
+	corresponding section in the reference paper;
+
+	+ A new component to model the Balmer continuum and
+	pseudo-continuum (blending of high order Balmer lines) has been
+	added.
+
+
 - May 29, 2017  (ver. 1.1)
 	Minor updates to improve performances, accuracy of results and
 	functionalities:
@@ -14,7 +42,6 @@
 	+ QSFit components sbpowerlaw and emline: improved performances;
 
 	+ Default gnuplot terminal is qt (in ver. 1.0 was wxt);
-
 
 
 - Dec. 5, 2016 (ver. 1.0)

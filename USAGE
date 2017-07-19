@@ -2,18 +2,18 @@ To use QSFit you should have IDL (ver >= 8.1) and Gnuplot (ver. >=5.0)
 installed.
 
 Start an IDL session and change to the directory where you stored the
-QSFit files, e.g.,
+QSFit files, e.g.:
 
-IDL> CD, 'C:\the\path\where\qsfit\code\is\located'   (on windows)
+  IDL> CD, 'C:\the\path\where\qsfit\code\is\located'   (on windows)
 
 or 
 
-IDL> CD, '/the/path/where/qsfit/code/is/located'   (on Linux)
+  IDL> CD, '/the/path/where/qsfit/code/is/located'   (on Linux)
 
 
 ______________________________________________________________________
-Compile the QSFit procedures and dependencies
-IDL> compile
+Compile the QSFit procedures and dependencies:
+  IDL> compile
 
 The "compile" procedure and QSFit routines can not be used within the
 same procedure.  Best practice is to call "compile" manually, at the
@@ -48,9 +48,9 @@ directory.  This can be used to quickly test the QSFit procedures (see
 below).
 
 ______________________________________________________________________
-Run the analysis for a specific source.
+Run the analysis for a specific source:
 
-IDL> res = qsfit('data/spec-0752-52251-0323.fits', z=0.3806, ebv=0.06846)
+  IDL> res = qsfit('data/spec-0752-52251-0323.fits', z=0.3806, ebv=0.06846)
 
 Parameters are:
  - the path to a SDSS-DR10 FITS file
@@ -64,7 +64,7 @@ ______________________________________________________________________
 If you want the results to be saved in a directory (which must have
 been previously created) use the OUTDIR keyword, e.g.
 
-IDL> res = qsfit('data/spec-0752-52251-0323.fits', z=0.3806, ebv=0.06846, outdir='output')
+  IDL> res = qsfit('data/spec-0752-52251-0323.fits', z=0.3806, ebv=0.06846, outdir='output')
 
 This will save all the logs in a file named
 output/spec-0752-52251-0323.log and the results in
@@ -82,16 +82,16 @@ re-run the analysis you should manually delete that file.
 
 ______________________________________________________________________
 Plot the results:
-IDL> qsfit_plot, res
+  IDL> qsfit_plot, res
 
 To plot the data rebinned by a factor of 5:
-IDL> res.gfit.plot.(0).main.rebin = 5
-IDL> qsfit_plot, res
+  IDL> res.gfit.plot.(0).main.rebin = 5
+  IDL> qsfit_plot, res
 
 
 ______________________________________________________________________
-To save the gnuplot files in a specific path
-IDL> qsfit_plot, res, filename='output/spec-0752-52251-0323'
+To save the gnuplot files in a specific path:
+  IDL> qsfit_plot, res, filename='output/spec-0752-52251-0323'
 
 Note that the directory "output" must have been previously created and
 that the file name must not have any extension.  Two files will be
@@ -118,3 +118,34 @@ with
   set output 'filename.pdf'
 
 and reload the file in gnuplot.
+
+
+______________________________________________________________________
+Monte Carlo resampling:
+
+To run the Monte Carlo reampling method (see corresponding section in
+the reference paper) simply add the RESAMPLE= keyword in the qsfit
+call, e.g.:
+
+  IDL> res = qsfit('data/spec-0752-52251-0323.fits', z=0.3806, ebv=0.06846, resample=1000)
+
+The result variable will be an array of 1000 elements (or whatver
+number you set with the RESAMPLE keyword) where the first is the
+actual analysis on the real data, while the remaining ones will be the
+analysis on the mock data generated from the best fit model of the
+actual analysis.
+
+
+______________________________________________________________________
+QSFit Customization:
+
+Some details of QSFit behavior can be customized through the
+!QSFIT_OPT global variable.  Check the qsfit_prepare_options
+procedure for a list of default values and their meaning.
+
+For instance, to enable/disable the Balmer continuum component set 
+`!qsfit_opt.balmer` to 1/0 respcetively.
+
+Further customization can be performed by modifying the source code in
+qsfit.pro.  Check the documentation in the reference paper and in the
+code itself.
