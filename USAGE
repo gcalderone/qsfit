@@ -146,6 +146,11 @@ procedure for a list of default values and their meaning.
 For instance, to enable/disable the Balmer continuum component set 
 `!qsfit_opt.balmer` to 1/0 respcetively.
 
+To add absorption lines at 2705A and 3810A set
+`!qsfit_opt.abslines_wavelengths = '2705, 3810'`
+
+etc...
+
 Further customization can be performed by modifying the source code in
 qsfit.pro.  Check the documentation in the reference paper and in the
 code itself.

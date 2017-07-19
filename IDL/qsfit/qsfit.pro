@@ -28,7 +28,7 @@
 ;  The QSFIT version.
 ;
 FUNCTION qsfit_version
-  RETURN, '1.2.0'
+  RETURN, '1.2.1'
 END
 
 ;=====================================================================
@@ -56,7 +56,7 @@ PRO qsfit_prepare_options, DEFAULT=default
         balmer_fixed_min_z: 1.1, $
  
         ;; Max redshift to keep the ironuv component fixed.
-        ironuv_fixed_max_z: 0.4,   $
+        ironuv_fixed_max_z: 0.4, $
 
         ;; Galaxy template: SWIRE_ELL2 SWIRE_SC SWIRE_ARP220
         ;; etc... (see qsfit_comp_galaxytemplate.pro)
@@ -73,6 +73,10 @@ PRO qsfit_prepare_options, DEFAULT=default
         ;; redshift the parameter is free to vary.  This functionality
         ;; allows to avoid degeneracy with the host galaxy template.
         alpha1_fixed_max_z: 0.6,   $
+
+        ;; String containing a (comma separated) list of rest frame
+        ;; wavelengths of the absorption lines
+        abslines_wavelengths: '', $
 
         ;; If 1 creates PDF file of each step during fitting
         show_step: 0b              $
@@ -523,8 +527,12 @@ PRO qsfit_compile
 
   ;;Setup GFIT model expression: actually the sum of all components
   cnames = (TAG_NAMES(gfit.comp))[0:gfit.comp.nn-1] ;;Model
-  gfit.expr.(0).model = STRJOIN(cnames, ' + ')
+  i = WHERE(STRMID(cnames, 0, 4) NE 'ABS_')
+  gfit.expr.(0).model = STRJOIN(cnames[i], ' + ')
 
+  IF (gsearch(STRMID(cnames, 0, 4) EQ 'ABS_', i)) THEN $
+     gfit.expr.(0).model = '(1 - (' + STRJOIN(cnames[i], ' + ') + ')) * (' + gfit.expr.(0).model + ')'
+  
   ;;Compile GFIT model
   gfit_compile
 END
@@ -743,7 +751,21 @@ FUNCTION qsfit_lineset
     str.name = 'SII_6716'    & str.wave = 6718.29   &  str.type = 'N'  & all.add, str ;;[SII]
     str.name = 'SII_6731'    & str.wave = 6732.67   &  str.type = 'N'  & all.add, str ;;[SII]
 
-  RETURN, all.toArray()
+  all = all.toArray()
+
+  ;; Add absorption lines
+  tmp = !QSFIT_OPT.abslines_wavelengths
+  IF (STRTRIM(tmp, 2) NE '') THEN BEGIN
+     tmp = FLOAT(STRSPLIT(tmp, ',', /extract))
+     FOR i=0, gn(tmp)-1 DO BEGIN
+        all = [all, all[-1]]
+        all[-1].name = gn2s(i+1)
+        all[-1].wave = tmp[i]
+        all[-1].type = 'A'
+     ENDFOR
+  ENDIF
+
+  RETURN, all
 END
 
 
@@ -821,6 +843,7 @@ PRO qsfit_add_lineset
   FOR i=0, gn(lines)-1 DO BEGIN
      ;;lines[i].type EQ 'N' ==> Narrow line
      ;;lines[i].type EQ 'B' ==> Broad line
+     ;;lines[i].type EQ 'A' ==> Absorption line
 
      ;;Estimate line coverage
      coverage = qsfit_line_coverage(lines[i].wave, (lines[i].type EQ 'N' ? 1e3 : 1e4))
@@ -880,6 +903,19 @@ PRO qsfit_add_lineset
 
         gfit_add_comp, type=comp, 'br_' + lines[i].name
      ENDIF
+
+     tmp = comp
+     IF (lines[i].type EQ 'A') THEN BEGIN
+        tmp.norm.val      = 0.1
+        tmp.fwhm.val      = 3000         ;CUSTOMIZABLE
+        tmp.fwhm.limits   = [200, 1.5e4] ;CUSTOMIZABLE
+        tmp.center.val    = lines[i].wave
+        tmp.center.limits = tmp.center.val + [-100, 100] ;CUSTOMIZABLE
+        tmp.center.fixed  = 0
+        tmp.v_off.fixed   = 1
+        gfit_add_comp, type=tmp, 'abs_' + lines[i].name
+     ENDIF
+     tmp = []
   ENDFOR
 
   ;;Add "unknwon" lines
@@ -925,6 +961,14 @@ PRO qsfit_add_lineset
                  STRJOIN('na_' + lines[WHERE(lines.type EQ 'N'  OR  lines.type EQ 'BN')].name, ' + ')
   gfit.plot.(0).expr_narrowlines.label = 'Narrow'
   gfit.plot.(0).expr_narrowlines.gp = 'w line ls 1 lw 2 lt rgb "dark-red"'
+
+  IF (gsearch(lines.type EQ 'A', i)) THEN $
+     gfit_add_expr, 'expr_AbsLines', STRJOIN('abs_' + lines[i].name, ' + ') $
+  ELSE $
+     gfit_add_expr, 'expr_AbsLines', '0'
+  gfit.plot.(0).expr_abslines.label = 'Absorption'
+  gfit.plot.(0).expr_abslines.gp = 'w line ls 1 lw 2 lt rgb "black"'
+  gfit.plot.(0).expr_abslines.plot = 0 ;;Do not show this expression in plots
 
   IF (!QSFIT_OPT.unkLines GT 0) THEN $
      gfit_add_expr, 'expr_Unknown', STRJOIN('unk' + gn2s(INDGEN(!QSFIT_OPT.unkLines)+1), ' + ') $
@@ -2103,7 +2147,7 @@ FUNCTION qsfit_reduce
   
   ;; Calculate the sum of all QSFit components except "known" emission lines
   sum_wo_lines = expr.(0).model - expr.(0).expr_broadlines - expr.(0).expr_narrowlines
-
+  sum_wo_lines /= (1. - expr.(0).expr_abslines)
 
   alllines = []
   FOR j=0, gn(lines)-1 DO BEGIN
@@ -2134,6 +2178,51 @@ FUNCTION qsfit_reduce
 
   ;;Save also all the lines results as an array
   out = CREATE_STRUCT(out, 'lines', alllines)
+  alllines = []
+
+
+  ;;-------------------------------------
+  ;;Reduce data for absorption lines
+  tmp = {   norm:   gnan(), norm_err:   gnan()  $
+          , fwhm:   gnan(), fwhm_err:   gnan()  $
+          , center: gnan(), center_err: gnan()  $
+          , ew:     gnan(), ew_err:     gnan()  $
+          , quality: 0b                         $
+        }
+  alllines = []
+  FOR j=0, gn(lines)-1 DO BEGIN
+     IF (lines[j].type EQ 'A') THEN BEGIN
+        lineName = 'ABS_' + STRUPCASE(lines[j].name)
+        icomp = WHERE(TAG_NAMES(gfit.comp) EQ lineName)
+        IF (icomp[0] EQ -1) THEN $
+           MESSAGE, 'No component named: ' + lineName
+
+        l = gfit.comp.(icomp)
+        tmp.norm       = l.norm.val
+        tmp.norm_err   = l.norm.err
+        tmp.fwhm       = l.fwhm.val
+        tmp.fwhm_err   = l.fwhm.err
+        tmp.center     = l.center.val
+        tmp.center_err = l.center.err
+        tmp.quality    = 0
+
+        tmp.ew = tmp.norm / INTERPOL(sum_wo_lines, gfit.cmp.(0).x, tmp.center, /nan)
+        tmp.ew_err = tmp.ew / tmp.norm * tmp.norm_err
+
+        out = CREATE_STRUCT(out, lineName, tmp)
+        alllines = [alllines, gstru_insert(tmp, 'line', lineName, 0)]
+     ENDIF
+  ENDFOR
+
+  IF (gn(alllines) GT 0) THEN BEGIN
+     out = CREATE_STRUCT(out, 'abslines', alllines)
+     alllines = []
+  ENDIF $
+  ELSE  $
+     out = CREATE_STRUCT(out, 'abslines', 0b)
+
+
+
 
   ;;-------------------------------------
   ;;Reduce data from Balmer component
@@ -2409,6 +2498,13 @@ PRO qsfit_report, red
   gprint
   gprint, ' Emission lines '
   gps, red.lines
+
+  IF (gtype(red.abslines) EQ 'STRUCT') THEN BEGIN
+     gprint
+     gprint
+     gprint, ' Absorption lines '
+     gps, red.abslines
+  ENDIF
 
   gprint
   gprint
