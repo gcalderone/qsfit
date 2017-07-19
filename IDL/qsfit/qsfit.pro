@@ -2541,7 +2541,11 @@ FUNCTION qsfit_flatten_results, red
   out = gstru_insert(out, 'chisq', red.gfit.res.test_stat)
   out = gstru_insert(out, 'dof'  , red.gfit.res.test_dof)
   out = gstru_insert(out, 'elapsed_time', red.gfit.res.elapsed_time)
-  out = gstru_sub(out, drop=['file_output', 'gfit', 'expr', 'log', 'cont', 'lines', 'opt'])
+  drop = ['file_output', 'gfit', 'expr', 'log', 'cont', 'lines', 'opt']
+  
+  IF (gsearch(TAG_NAMES(out) EQ 'ABS_LINES')) THEN $
+     drop = [drop, 'abs_lines']
+  out = gstru_sub(out, drop=drop)
   out = gstru_flatten(out)
   RETURN, out
 END
