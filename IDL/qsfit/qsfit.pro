@@ -28,9 +28,61 @@
 ;  The QSFIT version.
 ;
 FUNCTION qsfit_version
-  RETURN, '1.1'
+  RETURN, '1.2.0'
 END
 
+;=====================================================================
+;NAME:
+;  qsfit_prepare_options
+;
+PRO qsfit_prepare_options, DEFAULT=default
+  DEFSYSV, '!QSFIT_OPT', EXISTS=exists
+  IF (exists  AND  ~KEYWORD_SET(default)) THEN RETURN
+
+  opt = { $
+        ;; The number of unknown lines whose center wavelength is not
+        ;; a-priori assigned: they are placed (after all other
+        ;; emission lines have been fitted) at wavelengths where the
+        ;; fitting residuals are large.
+        unkLines:           10 , $
+
+        ;; Fraction of negative residuals after continuum re-normalization
+        cont_renorm_factor: 0.9, $
+
+        ;; Flag to use the Balmer continuum component.
+        balmer:             1b , $
+
+        ;; Min redshift to keep the Balmer component fixed.
+        balmer_fixed_min_z: 1.1, $
+ 
+        ;; Max redshift to keep the ironuv component fixed.
+        ironuv_fixed_max_z: 0.4,   $
+
+        ;; Galaxy template: SWIRE_ELL2 SWIRE_SC SWIRE_ARP220
+        ;; etc... (see qsfit_comp_galaxytemplate.pro)
+        galaxy_templ:       'SWIRE_ELL5', $ 
+
+        ;; Max redshift to use the galaxy template.  Beyond this
+        ;; redshift the component is disabled
+        galaxy_max_z:       0.8, $
+
+        ;; Value for the continuum.alpha1 value when z<=alpha1_fixed_max_z
+        alpha1_fixed_value: -1.7, $
+
+        ;; Max redshift to keep continuum.alpha1 fixed.  Beyond this
+        ;; redshift the parameter is free to vary.  This functionality
+        ;; allows to avoid degeneracy with the host galaxy template.
+        alpha1_fixed_max_z: 0.6,   $
+
+        ;; If 1 creates PDF file of each step during fitting
+        show_step: 0b              $
+  }
+  
+  IF (exists) THEN $
+     !QSFIT_OPT = opt $
+  ELSE  $
+     DEFSYSV, '!QSFIT_OPT', opt
+END
 
 ;=====================================================================
 ;NAME:
@@ -147,7 +199,7 @@ END
 
 ;=====================================================================
 ;NAME:
-;  qsfit_prepare
+;  qsfit_read_SDSS_DR10
 ;
 ;PURPOSE:
 ;  Read a SDSS DR-10 spectrum and loads data into GFIT.
@@ -168,7 +220,7 @@ END
 ;   The source colour excess.  If not given it is calculated using the
 ;   Schlegel et al. (1998) maps.
 ;
-PRO qsfit_prepare, filename, ID=id, Z=z, EBV=ebv
+PRO qsfit_read_SDSS_DR10, filename, ID=id, Z=z, EBV=ebv
   COMPILE_OPT IDL2
   ON_ERROR, !glib.on_error
   COMMON GFIT
@@ -242,8 +294,8 @@ PRO qsfit_prepare, filename, ID=id, Z=z, EBV=ebv
   tmp = REPLICATE(gnan(), gn(fits.ivar))
   tmp[iGood] = fits[iGood].ivar
   fits.ivar = tmp
-
-
+  
+  
   ;;Prepare user data with additional info from the FITS file.
   IF (gn(id) EQ 0) THEN id = ''
 
@@ -376,8 +428,7 @@ END
 ;PARAMETERS:
 ;  CONT= (optional input, either 0 or 1)
 ;    Freeze (1) or thaw (0) all parameters related to the continuum
-;    and the offset components.  The continuum curvature is always
-;    kept fixed.
+;    component.  The continuum curvature is always fixed.
 ;
 ;  IRON= (optional input, either 0 or 1)
 ;    Freeze (1) or thaw (0) all parameters related to both the UV and
@@ -393,25 +444,36 @@ PRO qsfit_freeze, cont=cont, iron=iron, lines=lines
   COMMON GFIT
 
   IF (N_ELEMENTS(cont) EQ 1) THEN BEGIN
-     gfit.comp.continuum.norm.fixed    = cont
-     gfit.comp.continuum.x0.fixed      = 1
-     gfit.comp.continuum.alpha1.fixed  = cont
-     gfit.comp.continuum.dalpha.fixed  = cont
-     gfit.comp.continuum.curv.fixed    = 1
+     gfit.comp.continuum.norm.fixed  = cont
+     gfit.comp.continuum.x0.fixed    = 1
+     gfit.comp.galaxy.norm.fixed     = cont
+ 
+     IF (gfit.data.(0).udata.z GT !QSFIT_OPT.alpha1_fixed_max_z) THEN BEGIN
+        gfit.comp.continuum.alpha1.fixed  = cont
+        ;;gfit.comp.continuum.dalpha.fixed  = cont  ;;CUSTOMIZABLE
+        ;;gfit.comp.continuum.curv.fixed    = 1     ;;CUSTOMIZABLE
+     ENDIF
+
+
+     IF (gfit.comp.balmer.enabled   AND   $
+         (gfit.data.(0).udata.z LT !QSFIT_OPT.balmer_fixed_min_z)) THEN BEGIN
+        gfit.comp.balmer.norm.fixed = cont
+        gfit.comp.balmer.ratio.fixed = cont
+        ;;gfit.comp.balmer.logT.fixed  = cont
+        ;;gfit.comp.balmer.logTau.fixed = cont
+        ;;gfit.comp.balmer.logNe.fixed = cont
+        ;;gfit.comp.balmer.fwhm.fixed  = cont
+     ENDIF
   ENDIF
 
   IF (N_ELEMENTS(iron) EQ 1) THEN BEGIN
-     gfit.comp.ironuv0.norm.fixed    = iron
-     gfit.comp.ironuv0.fwhm.fixed    = 1
-     gfit.comp.ironuv1.norm.fixed    = iron
-     gfit.comp.ironuv1.fwhm.fixed    = 1
-     gfit.comp.ironuv2.norm.fixed    = iron
-     gfit.comp.ironuv2.fwhm.fixed    = 1
-     gfit.comp.ironuv3.norm.fixed    = iron
-     gfit.comp.ironuv3.fwhm.fixed    = 1
+     IF (gfit.data.(0).udata.z GT !QSFIT_OPT.ironuv_fixed_max_z) THEN BEGIN
+        gfit.comp.ironuv.ew.fixed    = iron
+        gfit.comp.ironuv.fwhm.fixed  = 1
+     ENDIF
      gfit.comp.ironopt.norm_br.fixed = iron
      gfit.comp.ironopt.fwhm_br.fixed = 1
-     gfit.comp.ironopt.norm_na.fixed = iron
+     gfit.comp.ironopt.norm_na.fixed = 1
      gfit.comp.ironopt.fwhm_na.fixed = 1
   ENDIF
 
@@ -419,6 +481,9 @@ PRO qsfit_freeze, cont=cont, iron=iron, lines=lines
      FOR i=0, gfit.comp.nn-1 DO BEGIN
         IF (gfit.comp.(i).funcName EQ 'qsfit_comp_emline') THEN BEGIN
            IF ((gfit.comp.(i).enabled)) THEN BEGIN
+
+              IF (STRMID(STRUPCASE(gfit.comp.(i).name), 0, 4) EQ 'LINE') THEN $
+                 CONTINUE
 
               gfit.comp.(i).norm.fixed = lines
               gfit.comp.(i).fwhm.fixed = lines
@@ -430,20 +495,10 @@ PRO qsfit_freeze, cont=cont, iron=iron, lines=lines
         ENDIF
      ENDFOR
 
-     ;; Fix emission line parameter values (CUSTOMIZABLE)
-     ;;gfit.comp.na_Hb.norm.val    = 0.17507
-     ;;gfit.comp.na_Hb.fwhm.val    = 505.78
-     ;;gfit.comp.na_Hb.v_off.val   = -130.34
-     ;;gfit.comp.na_Hb.norm.fixed  = 1
-     ;;gfit.comp.na_Hb.fwhm.fixed  = 1
-     ;;gfit.comp.na_Hb.v_off.fixed = 1
-     ;;
-     ;;gfit.comp.na_OIII_5007.norm.val    = 0.46382
-     ;;gfit.comp.na_OIII_5007.fwhm.val    = 604.87
-     ;;gfit.comp.na_OIII_5007.v_off.val   = -2.0543
-     ;;gfit.comp.na_OIII_5007.norm.fixed  = 1
-     ;;gfit.comp.na_OIII_5007.fwhm.fixed  = 1
-     ;;gfit.comp.na_OIII_5007.v_off.fixed = 1
+     IF (gfit.comp.line_ha_base.enabled) THEN BEGIN
+        gfit.comp.line_ha_base.norm.fixed = lines
+        gfit.comp.line_ha_base.fwhm.fixed = lines
+     ENDIF
   ENDIF
 END
 
@@ -512,14 +567,18 @@ PRO qsfit_add_continuum
   mm = gminmax(gfit.cmp.(0).x)
   continuum.x0.val    = mm[0] + (mm[1]-mm[0]) / 2.
   continuum.x0.limits = mm[0] + (mm[1]-mm[0]) / 5. * [1, 4]
-  continuum.x0.fixed  = 0
+  continuum.x0.fixed  = 1 ;;CUSTOMIZABLE
 
   continuum.alpha1.val = -1.5
   continuum.alpha1.limits = [-3, 1.] ;--> -3, 1 in frequency
+  IF (gfit.data.(0).udata.z LE !QSFIT_OPT.alpha1_fixed_max_z) THEN BEGIN
+     continuum.alpha1.val = !QSFIT_OPT.alpha1_fixed_value
+     continuum.alpha1.fixed = 1 ;;avoid degeneracy with galaxy template
+  ENDIF
 
   continuum.dalpha.val    = 0
   continuum.dalpha.limits = [-0.2, 0.2]
-  ;;continuum.dalpha.fixed  = 1 ;;CUSTOMIZABLE: set fixed=1 to use a simple power law component
+  continuum.dalpha.fixed  = 1 ;;CUSTOMIZABLE: set fixed=1 to use a simple power law component, fixed=0 for a smoothly broken power law
 
   ;;Keep a fixed curvature of the smoothly broken power law
   continuum.curv.val = 100
@@ -534,11 +593,7 @@ PRO qsfit_add_continuum
   ;;--------------------------
   gprint, '   Galaxy'
   gfit_add_comp, type='qsfit_comp_galaxytemplate', 'galaxy'
-  gfit.comp.galaxy.opt.id = 'M01_E'
-  ;;gfit.comp.galaxy.opt.id = 'SWIRE_ELL2'
-  ;;gfit.comp.galaxy.opt.id = 'SWIRE_SC'
-  ;;gfit.comp.galaxy.opt.id = 'SWIRE_ARP220'
-
+  gfit.comp.galaxy.opt.id = !QSFIT_OPT.galaxy_templ
   gfit.comp.galaxy.norm.val = INTERPOL(gfit.cmp.(0).y, gfit.cmp.(0).x, 5500) > 1.e-4
 
   ;;If 5500 is outisde the available range compute value at the edge
@@ -558,9 +613,9 @@ PRO qsfit_add_continuum
   gfit.plot.(0).expr_ContGalaxy.label = 'Cont. + Galaxy'
   gfit.plot.(0).expr_ContGalaxy.gp = 'w line ls 1 lt rgb "red"'
 
-  ;;Galaxy component is disabled when max(wavelength) < 4480, corresponding to z~0.95
-  IF (gfit.data.(0).udata.z GT 0.7    AND   (gfit.comp.galaxy.opt.id EQ 'M01_E')) THEN BEGIN
-     qsfit_log, 'Galaxy component is disabled since Z=' + gn2s(gfit.data.(0).udata.z) + ' > 0.7'
+  ;;Galaxy component is disabled when z > !QSFIT_OPT.galaxy_max_z
+  IF (gfit.data.(0).udata.z GT !QSFIT_OPT.galaxy_max_z) THEN BEGIN
+     qsfit_log, 'Galaxy component is disabled since Z=' + gn2s(gfit.data.(0).udata.z) + ' > ' + gn2s(!QSFIT_OPT.galaxy_max_z)
      gfit.comp.galaxy.enabled = 0
   ENDIF
 
@@ -581,7 +636,8 @@ END
 ;  emission lines, and the resulting residuals are (on average) 50%
 ;  positive and 50% negative.  In order to account for emission lines
 ;  contribution we lower the continuum luminosity until the negative
-;  residuals are  90% of the total.
+;  residuals are a fraction equal to
+;  !QSFIT_OPT.cont_renorm_factor of the total.
 ;
 ;PARAMETERS:
 ;  NONE.
@@ -610,7 +666,7 @@ PRO qsfit_renormalize_cont
      IF (last_fraction EQ check_fraction) THEN BREAK
      last_fraction = check_fraction
 
-     IF (check_fraction GT 0.9) THEN BREAK ;;CUSTOMIZABLE
+     IF (check_fraction GT !QSFIT_OPT.cont_renorm_factor) THEN BREAK
 
      ;;Lower the continuum normalization
      gfit.comp.continuum.norm.val *= 0.99
@@ -628,33 +684,6 @@ PRO qsfit_renormalize_cont
              gn2s(gfit.comp.continuum.norm.val) + ',  ' + gn2s(check_fraction)
   qsfit_log
 END
-
-
-;=====================================================================
-;NAME:
-;  qsfit_nunklines
-;
-;PURPOSE:
-;  Return the number of "unknown" lines to be considered.
-;
-;DESCRIPTION:
-;  The "unknown" lines are emission lines whose center wavelength is
-;  not a-priori assigned: they are placed (after all other emission
-;  lines have been fitted) at wavelengths where the fitting residuals
-;  are large.
-;
-;  By default we consider 10 such lines.
-;
-;PARAMETERS:
-;  NONE.
-;
-;RETURN VALUE: (a scalar integer)
-;  The number of "unknown" lines to be considered.
-;
-FUNCTION qsfit_nunklines
-  RETURN, 10 ;;CUSTOMIZABLE
-END
-
 
 
 
@@ -694,13 +723,13 @@ FUNCTION qsfit_lineset
   ;;str.name = 'HeII'        & str.wave = 1640.4    &  str.type = 'B'  & all.add, str
   ;;str.name = 'OIII'        & str.wave = 1665.85   &  str.type = 'B'  & all.add, str
   ;;str.name = 'AlIII'       & str.wave = 1857.4    &  str.type = 'B'  & all.add, str
-    str.name = 'CIII_1909'   & str.wave = 1908.734  &  str.type = 'B'  & all.add, str;;CIII]
+    str.name = 'CIII_1909'   & str.wave = 1908.734  &  str.type = 'B'  & all.add, str ;;CIII]
   ;;str.name = 'CII'         & str.wave = 2326.0    &  str.type = 'B'  & all.add, str
     str.name = 'MgII_2798'   & str.wave = 2799.117  &  str.type = 'B'  & all.add, str
   ;;str.name = 'NeV'         & str.wave = 3346.79   &  str.type = 'N'  & all.add, str ;;[NeV]
-    str.name = 'NeVI_3426'   & str.wave = 3426.85   &  str.type = 'N'  & all.add, str;;[NeVI]
-    str.name = 'OII_3727'    & str.wave = 3729.875  &  str.type = 'N'  & all.add, str;;[OII]  ;was 3727.09
-    str.name = 'NeIII_3869'  & str.wave = 3869.81   &  str.type = 'N'  & all.add, str;;[NeIII]
+    str.name = 'NeVI_3426'   & str.wave = 3426.85   &  str.type = 'N'  & all.add, str ;;[NeVI]
+    str.name = 'OII_3727'    & str.wave = 3729.875  &  str.type = 'N'  & all.add, str ;;[OII]  ;was 3727.09
+    str.name = 'NeIII_3869'  & str.wave = 3869.81   &  str.type = 'N'  & all.add, str ;;[NeIII]
     str.name = 'Hd'          & str.wave = 4102.89   &  str.type = 'B'  & all.add, str
     str.name = 'Hg'          & str.wave = 4341.68   &  str.type = 'B'  & all.add, str
   ;;str.name = 'HeII'        & str.wave = ????      &  str.type = 'B'  & all.add, str
@@ -711,8 +740,8 @@ FUNCTION qsfit_lineset
     str.name = 'NII_6549'    & str.wave = 6549.86   &  str.type = 'N'  & all.add, str;;[NII]
     str.name = 'Ha'          & str.wave = 6564.61   &  str.type = 'BN' & all.add, str
     str.name = 'NII_6583'    & str.wave = 6585.27   &  str.type = 'N'  & all.add, str;;[NII]
-    str.name = 'SII_6716'    & str.wave = 6718.29   &  str.type = 'N'  & all.add, str;;[SII]
-    str.name = 'SII_6731'    & str.wave = 6732.67   &  str.type = 'N'  & all.add, str;;[SII]
+    str.name = 'SII_6716'    & str.wave = 6718.29   &  str.type = 'N'  & all.add, str ;;[SII]
+    str.name = 'SII_6731'    & str.wave = 6732.67   &  str.type = 'N'  & all.add, str ;;[SII]
 
   RETURN, all.toArray()
 END
@@ -790,8 +819,8 @@ PRO qsfit_add_lineset
   lines = qsfit_lineset()
 
   FOR i=0, gn(lines)-1 DO BEGIN
-     ;;lines[i].type EQ 'N'  ==> Narrow line
-     ;;lines[i].type EQ 'B'  ==> Broad line
+     ;;lines[i].type EQ 'N' ==> Narrow line
+     ;;lines[i].type EQ 'B' ==> Broad line
 
      ;;Estimate line coverage
      coverage = qsfit_line_coverage(lines[i].wave, (lines[i].type EQ 'N' ? 1e3 : 1e4))
@@ -835,7 +864,7 @@ PRO qsfit_add_lineset
 
      IF (lines[i].type EQ 'B'  OR  lines[i].type EQ 'BN') THEN BEGIN
         comp.fwhm.val     = 5000         ;CUSTOMIZABLE
-        comp.fwhm.limits  = [900, 2.e4]  ;CUSTOMIZABLE
+        comp.fwhm.limits  = [900, 1.5e4]  ;CUSTOMIZABLE
         comp.v_off.limits = 3000*[-1,1]  ;CUSTOMIZABLE
 
         IF (lines[i].name EQ 'MgII_2798') THEN $ ;;Exception for the "narrow" MgII line ;;TEST
@@ -854,7 +883,7 @@ PRO qsfit_add_lineset
   ENDFOR
 
   ;;Add "unknwon" lines
-  FOR i=0, qsfit_nunklines()-1 DO BEGIN
+  FOR i=0, !QSFIT_OPT.unkLines-1 DO BEGIN
      comp.enabled = 0  ;;will be enabled in qsfit_add_unknown
 
      comp.center.val   = 3000 ;; will be set in qsfit_add_unknown
@@ -870,8 +899,24 @@ PRO qsfit_add_lineset
      gfit_add_comp, type=comp, 'unk' + gn2s(i+1)
   ENDFOR
 
+  ;;Add a line to account for Ha broad base
+  comp = gfit_component('qsfit_comp_emline')
+  comp.center.val   = gfit.comp.br_Ha.center.val
+  comp.center.fixed = 1
+  comp.fwhm.val     = 2e4          ;CUSTOMIZABLE
+  comp.fwhm.limits  = [1e4, 3e4]   ;CUSTOMIZABLE
+  comp.v_off.val    = 0
+  comp.v_off.fixed  = 1
+  comp.norm.val     = 0
+  comp.enabled = gfit.comp.br_Ha.enabled
+  gfit.comp.br_Ha.fwhm.val       = 3e3
+  gfit.comp.br_Ha.fwhm.limits[1] = 1e4
+  gfit_add_comp, type=comp, 'line_Ha_base'
+
+
   ;;Add expressions
   gfit_add_expr, 'expr_BroadLines', $
+                 'line_Ha_base + ' + $
                  STRJOIN('br_' + lines[WHERE(lines.type EQ 'B'  OR  lines.type EQ 'BN')].name, ' + ')
   gfit.plot.(0).expr_broadlines.label = 'Broad'
   gfit.plot.(0).expr_broadlines.gp = 'w line ls 1 lw 2 lt rgb "blue"'
@@ -881,10 +926,10 @@ PRO qsfit_add_lineset
   gfit.plot.(0).expr_narrowlines.label = 'Narrow'
   gfit.plot.(0).expr_narrowlines.gp = 'w line ls 1 lw 2 lt rgb "dark-red"'
 
-  IF (qsfit_nunklines() GT 0) THEN $
-     gfit_add_expr, 'expr_Unknown', STRJOIN('unk' + gn2s(INDGEN(qsfit_nunklines())+1), ' + ') $
+  IF (!QSFIT_OPT.unkLines GT 0) THEN $
+     gfit_add_expr, 'expr_Unknown', STRJOIN('unk' + gn2s(INDGEN(!QSFIT_OPT.unkLines)+1), ' + ') $
   ELSE $
-     gfit_add_expr, 'expr_Unknown', '0'
+     gfit_add_expr, 'expr_Unknown', '0'       
   tmp = N_TAGS(gfit.plot.(0)) - 1
   gfit.plot.(0).expr_Unknown.plot  = 0 ;;will be enabled in qsfit_add_unknown
   gfit.plot.(0).expr_Unknown.label = 'Unknown'
@@ -895,7 +940,6 @@ PRO qsfit_add_lineset
   gfit.comp.na_OIII_4959.v_off.tied = 'na_OIII_5007.v_off'
 
   qsfit_compile
-  qsfit_freeze, line=0
 END
 
 
@@ -919,47 +963,25 @@ PRO qsfit_add_iron
   gprint, 'Adding opt/UV iron templates...'
   ironuv = gfit_component('qsfit_comp_ironuv')
 
-  ironuv.norm.val    = 100
-  ironuv.norm.fixed  = 0
+  ironuv.ew.val    = 138
+  ironuv.ew.limits = [87, 218]
+
+  IF (gfit.data.(0).udata.z GT !QSFIT_OPT.ironuv_fixed_max_z) THEN $
+     ironuv.ew.fixed  = 0 $
+  ELSE $
+     ironuv.ew.fixed  = 1  
+
   ironuv.fwhm.val    = 3000
   ironuv.fwhm.fixed  = 1
   ironuv.fwhm.limits = [1e3, 1e4]
   ironuv.fwhm.step   = 500
 
-  ironuv.opt.part=0
-  gfit_add_comp, type=ironuv, 'ironuv0'
+  gfit_add_comp, type=ironuv, 'ironuv'
 
-  ironuv.opt.part=1
-  gfit_add_comp, type=ironuv, 'ironuv1'
-
-  ironuv.opt.part=2
-  gfit_add_comp, type=ironuv, 'ironuv2'
-
-  ironuv.opt.part=3
-  gfit_add_comp, type=ironuv, 'ironuv3'
-
-
-  tmp = INT_TABULATED(gfit.cmp.(0).x, qsfit_comp_ironuv(gfit.cmp.(0).x, 1, 1000, part=0))
-  IF (tmp LT 0.5) THEN BEGIN
-     qsfit_log, 'Iron UV part 0 is disabled'
-     gfit.comp.ironuv0.enabled = 0
-  ENDIF
-  tmp = INT_TABULATED(gfit.cmp.(0).x, qsfit_comp_ironuv(gfit.cmp.(0).x, 1, 1000, part=1))
-  IF (tmp LT 0.5) THEN BEGIN
-     qsfit_log, 'Iron UV part 1 is disabled'
-     gfit.comp.ironuv1.enabled = 0
-  ENDIF
-  tmp = INT_TABULATED(gfit.cmp.(0).x, qsfit_comp_ironuv(gfit.cmp.(0).x, 1, 1000, part=2))
-  IF (tmp LT 0.5) THEN BEGIN
-     qsfit_log, 'Iron UV part 2 is disabled'
-     gfit.comp.ironuv2.enabled = 0
-  ENDIF
-  tmp = INT_TABULATED(gfit.cmp.(0).x, qsfit_comp_ironuv(gfit.cmp.(0).x, 1, 1000, part=3))
-  IF (tmp LT 0.5) THEN BEGIN
-     qsfit_log, 'Iron UV part 3 is disabled'
-     gfit.comp.ironuv3.enabled = 0
-  ENDIF
-
+  ;;IF (gfit.data.(0).udata.z LT 0.35) THEN BEGIN
+  ;;   qsfit_log, 'Iron UV is disabled'
+  ;;   gfit.comp.ironuv.enabled = 0
+  ;;ENDIF
 
   ;;Add optical iron template
   ironopt = gfit_component('qsfit_comp_ironoptical')
@@ -972,9 +994,9 @@ PRO qsfit_add_iron
   ENDIF
 
   gfit.comp.ironopt.norm_br.val   = 0.1
-  gfit.comp.ironopt.norm_na.val   = 0.1
+  gfit.comp.ironopt.norm_na.val   = 0
   gfit.comp.ironopt.norm_br.fixed = 0
-  gfit.comp.ironopt.norm_na.fixed = 0
+  gfit.comp.ironopt.norm_na.fixed = 1 ;will be freed during last run
 
   gfit.comp.ironopt.fwhm_br.val    = 3000
   gfit.comp.ironopt.fwhm_br.fixed  = 1
@@ -988,10 +1010,58 @@ PRO qsfit_add_iron
 
 
   ;;Add expression for iron templates
-  gfit_add_expr, 'expr_Iron', 'ironuv0 + ironuv1 + ironuv2 + ironuv3 + ironopt'
+  gfit_add_expr, 'expr_Iron', 'ironuv + ironopt'
   gfit.plot.(0).expr_iron.label = 'Iron'
   gfit.plot.(0).expr_iron.gp = 'w line ls 1 lw 1 lt rgb "dark-green"'
 
+  qsfit_compile
+END
+
+
+;=====================================================================
+;NAME:
+;  qsfit_add_balmer
+;
+;PURPOSE:
+;  Add the Balmer High-order lines (HOL) and continuum (BAC) templates
+;  to the GFIT model.
+;
+;PARAMETERS:
+;  NONE.
+;
+PRO qsfit_add_balmer
+  COMPILE_OPT IDL2
+  ON_ERROR, !glib.on_error
+  COMMON GFIT
+
+  gprint, 'Adding Balmer template...'
+  comp = gfit_component('qsfit_comp_balmer')
+  gfit_add_comp, type=comp, 'balmer'
+
+  IF (!QSFIT_OPT.balmer) THEN BEGIN
+     gfit.comp.balmer.norm.val    = 0.1
+
+     IF (gfit.data.(0).udata.z LT !QSFIT_OPT.balmer_fixed_min_z) THEN BEGIN
+        gfit.comp.balmer.norm.fixed  = 0
+        gfit.comp.balmer.norm.limits = [0, 0.5]
+        gfit.comp.balmer.ratio.val   = 0.5
+        gfit.comp.balmer.ratio.fixed = 0
+        gfit.comp.balmer.ratio.limits = [0.3, 1]
+     ENDIF $
+     ELSE BEGIN
+        gfit.comp.balmer.norm.fixed  = 1
+        gfit.comp.balmer.ratio.val   = 0.3
+        gfit.comp.balmer.ratio.fixed = 1
+     ENDELSE
+  ENDIF $
+  ELSE  $
+     gfit.comp.balmer.enabled = 0
+
+  ;;Add expression for Balmer components
+  gfit_add_expr, 'expr_Balmer', 'balmer'
+  gfit.plot.(0).expr_Balmer.plot  = 1
+  gfit.plot.(0).expr_Balmer.label = 'Balmer'
+  gfit.plot.(0).expr_Balmer.gp = 'w line ls 1 dt 4 lw 1 lt rgb "dark-green"'
 
   qsfit_compile
 END
@@ -1013,47 +1083,63 @@ PRO qsfit_add_unknown
   COMPILE_OPT IDL2
   ON_ERROR, !glib.on_error
   COMMON GFIT
+  COMMON COM_RESAMPLING, unkCenter, unkEnabled
 
   ;;Set "unknown" line center wavelength where there is a maximum in
   ;;the fit residuals, and re-run a fit.
   iadd = 0l
-  FOR iiunk=1, qsfit_nunklines() DO BEGIN
+  FOR iiunk=1, !QSFIT_OPT.unkLines DO BEGIN
      iunk = WHERE(TAG_NAMES(gfit.comp) EQ 'UNK' + gn2s(iiunk))
 
-     ;;Search for a maximum in the residual
-     gfit_eval
-     xx = gfit.cmp.(0).x
-     yy = gfit.cmp.(0).y
-     ee = gfit.cmp.(0).e
-     mo = gfit.cmp.(0).m
+     IF (gn(unkCenter) EQ 0) THEN BEGIN
+        ;;Search for a maximum in the residual
+        gfit_eval
+        xx = gfit.cmp.(0).x
+        yy = gfit.cmp.(0).y
+        ee = gfit.cmp.(0).e
+        mo = gfit.cmp.(0).m
 
-     ;;Do not add lines within 6000 km/s from the edges since these
-     ;;may influence continuum fitting (6000 km/s / speed of light =
-     ;;0.02).
-     range = gminmax(xx)
-     range *= (1 + [1,-1]*0.02) ;; CUSTOMIZABLE
-     ii = WHERE(xx LT range[0]   OR   xx GT range[1])
-     IF (ii[0] NE -1) THEN mo[ii] = yy[ii]
+        ;TODO: explain
+        ;;IF (ABS(gfit.data.(0).udata.z - 0.5) LT 0.2) THEN BEGIN
+        ;;   ii = WHERE((xx GT 4350 AND xx LT 4860)  OR   $
+        ;;              (xx GT 5150 AND xx LT 5520))
+        ;;   IF (ii[0] NE -1) THEN $
+        ;;      mo[ii] = yy[ii]
+        ;;ENDIF
 
-     REPEAT BEGIN
-        maxresid = MAX((yy - mo) / ee, imax)
-        IF (maxresid LE 0) THEN BEGIN
-           gprint, 'No residual is greater than 0, skip searching further residuals.'
-           RETURN
-        ENDIF
+        ;;Do not add lines within 6000 km/s from the edges since these
+        ;;may influence continuum fitting (6000 km/s / speed of light
+        ;;= 0.02).
+        range = gminmax(xx)
+        range *= (1 + [1,-1]*0.02) ;; CUSTOMIZABLE
+        ii = WHERE(xx LT range[0]   OR   xx GT range[1])
+        IF (ii[0] NE -1) THEN mo[ii] = yy[ii]
 
-        mo[imax] = yy[imax] ;;Avoid considering again the same residual
+        REPEAT BEGIN
+           maxresid = MAX((yy - mo) / ee, imax)
+           IF (maxresid LE 0) THEN BEGIN
+              gprint, 'No residual is greater than 0, skip searching further residuals.'
+              RETURN
+           ENDIF
 
-     ;;New line must be at least 2 sample away from previously
-     ;;considered residual.
-     ENDREP UNTIL (MIN(ABS(imax - iadd)) GT 2)
+           mo[imax] = yy[imax] ;;Avoid considering again the same residual
 
-     ;;Add an emission line
-     iadd = [iadd, imax]
-     xadd = xx[imax]
+           ;;New line must be at least 2 sample away from previously
+           ;;considered residual.
+        ENDREP UNTIL (MIN(ABS(imax - iadd)) GT 2)
 
-     gprint, 'Enabling "unknown" em. line ' + $
-             gn2s(iiunk) + '/' + gn2s(qsfit_nunklines()) + ' at ', xadd
+        ;;Add an emission line
+        iadd = [iadd, imax]
+        xadd = xx[imax]
+     ENDIF $
+     ELSE BEGIN
+        IF (iiunk EQ gn(unkCenter)) THEN RETURN
+        xadd = unkCenter[iiunk]
+        maxresid = gnan()
+     ENDELSE
+
+     qsfit_log, 'Enabling "unknown" em. line ' + $
+             gn2s(iiunk) + '/' + gn2s(!QSFIT_OPT.unkLines) + ' at ' + gn2s(xadd)
      gfit.comp.(iunk).enabled       = 1
      gfit.comp.(iunk).center.val    = xadd
      gfit.comp.(iunk).center.limits = xadd + xadd/10.*[-1,1] ;allow to move 10%
@@ -1068,6 +1154,9 @@ PRO qsfit_add_unknown
      ;;If the last maximum residual was less than 3 sigma exit the loop
      IF (maxresid LT 3) THEN BREAK ;;CUSTOMIZABLE
   ENDFOR
+
+  ;;Save initial values of unknown lines center
+  IF (gn(unkCenter) EQ 0) THEN unkCenter = xx[iadd]
 
   ;;Enable plotting of unknown lines
   gfit.plot.(0).expr_Unknown.plot = 1
@@ -1183,6 +1272,7 @@ FUNCTION qsfit_reduce_line_templ
            , lum:  gnan(), lum_err:  gnan()  $
            , fwhm: gnan(), fwhm_err: gnan()  $
            , voff: gnan(), voff_err: gnan()  $
+           , ew:   gnan(), ew_err:   gnan()  $
            , quality: 0b                     $
          }
   RETURN, line
@@ -1256,16 +1346,21 @@ END
 ;    The wavelength of the emission line to be analyzed (in
 ;    Angstrom).
 ;
-;RETURN VALUE:
+;  /NOASSOC (keyword)
+;    Do not associate any "unknown" line with current line
+;
+;RETURN VALUE: 
 ;  (a scalar structure whose template is given by
 ;  qsfit_reduce_line_templ()) A structure containing the luminosity,
 ;  FWHM and velocity offset of an emission line, and the associated
 ;  uncertainties.
 ;
-FUNCTION qsfit_reduce_line, cname, wave
+FUNCTION qsfit_reduce_line, cname, wave, NOASSOC=noassoc
   COMPILE_OPT IDL2
   ON_ERROR, !glib.on_error
   COMMON GFIT
+
+  noassoc = KEYWORD_SET(noassoc) 
 
   ;;Emission line FWHM broad/narrow separator
   brnasep = 1000 ;;CUSTOMIZABLE
@@ -1288,36 +1383,37 @@ FUNCTION qsfit_reduce_line, cname, wave
 
   ;;Index of "unknown" lines
   iunk = []
-  IF (qsfit_nunklines() GT 0) THEN $
+  IF (!QSFIT_OPT.unkLines GT 0) THEN $
      iunk = WHERE(STRMID(TAG_NAMES(gfit.comp), 0, 3) EQ 'UNK')
 
-  ;;Loop through "unknown" lines to check if an "unknown" line can be
-  ;;associated to current line
   assoc = icomp
-  FOR i=0, gn(iunk)-1 DO BEGIN
-     j = iunk[i]
-     IF (~gfit.comp.(j).enabled) THEN CONTINUE
+  IF (~noassoc) THEN BEGIN
+     ;;Loop through "unknown" lines to check if an "unknown" line can be
+     ;;associated to current line
+     FOR i=0, gn(iunk)-1 DO BEGIN
+        j = iunk[i]
+        IF (~gfit.comp.(j).enabled) THEN CONTINUE
 
-     ;;Get center and FWHM of the unknown line
-     center  = gfit.comp.(j).center.val
-     fwhm    = gfit.comp.(j).fwhm.val
-     fwhm_aa = fwhm * center / 3.e5 ;;FWHM in Angstrom
+        ;;Get center and FWHM of the unknown line
+        center  = gfit.comp.(j).center.val
+        fwhm    = gfit.comp.(j).fwhm.val
+        fwhm_aa = fwhm * center / 3.e5 ;;FWHM in Angstrom
 
-     ;;Currently we avoid association of unknown lines to narrow
-     ;;lines.
-     IF (isNarrow) THEN CONTINUE
+        ;;Currently we avoid association of unknown lines to narrow
+        ;;lines.
+        IF (isNarrow) THEN CONTINUE
 
-     IF (~isNarrow   AND   (fwhm LT brnasep)) THEN CONTINUE
-     IF ( isNarrow   AND   (fwhm GE brnasep)) THEN CONTINUE
-     IF (gfit.comp.(j).norm.val EQ 0)         THEN CONTINUE
+        IF (~isNarrow   AND   (fwhm LT brnasep)) THEN CONTINUE
+        IF ( isNarrow   AND   (fwhm GE brnasep)) THEN CONTINUE
+        IF (gfit.comp.(j).norm.val EQ 0)         THEN CONTINUE
 
-
-     ;;Check if the "unknown" line is sufficiently close to the
-     ;;emission line center.
-     IF (ABS(center - wave_center) LT fwhm_aa/2) THEN BEGIN
-        assoc = [assoc, j]
-     ENDIF
-  ENDFOR
+        ;;Check if the "unknown" line is sufficiently close to the
+        ;;emission line center.
+        IF (ABS(center - wave_center) LT fwhm_aa/2) THEN BEGIN
+           assoc = [assoc, j]
+        ENDIF
+     ENDFOR
+  ENDIF
 
   ;;Prepare return value
   line = qsfit_reduce_line_templ()
@@ -1453,33 +1549,38 @@ FUNCTION qsfit_reduce_line, cname, wave
      IF (line.lum_err/line.lum GT 1.5) THEN line.quality += 2
   ENDELSE
 
-  IF (~FINITE(line.fwhm)       OR    $
-      ~FINITE(line.fwhm_err)   OR    $
-      (line.fwhm     LE 0)     OR    $
-      (line.fwhm_err LE 0)     ) THEN BEGIN
-     line.quality += 4
-  ENDIF $
-  ELSE BEGIN
-     IF (gn(assoc) EQ 1) THEN BEGIN
-        IF (MIN(ABS(gfit.comp.(assoc).fwhm.val - gfit.comp.(assoc).fwhm.limits), /nan) LT 200) THEN $
-           line.quality += 8
-     ENDIF
-     IF (line.fwhm_err/line.fwhm GT 2) THEN line.quality += 16
-  ENDELSE
+  IF (gfit.comp.(icomp).fwhm.fixed EQ 0) THEN BEGIN
+     IF (~FINITE(line.fwhm)       OR    $
+         ~FINITE(line.fwhm_err)   OR    $
+         (line.fwhm     LE 0)     OR    $
+         (line.fwhm_err LE 0)     ) THEN BEGIN
+        line.quality += 4
+     ENDIF $
+     ELSE BEGIN
+        IF (gn(assoc) EQ 1) THEN BEGIN
+           IF (MIN(ABS(gfit.comp.(assoc).fwhm.val - gfit.comp.(assoc).fwhm.limits), /nan) LT 200) THEN $
+              line.quality += 8
+        ENDIF
+        IF (line.fwhm_err/line.fwhm GT 2) THEN line.quality += 16
+     ENDELSE
+  ENDIF
 
-  IF (~FINITE(line.voff)       OR    $
-      ~FINITE(line.voff_err)   OR    $
-      (line.voff     EQ 0)     OR    $
-      (line.voff_err LE 0)     ) THEN BEGIN
-     line.quality += 32
-  ENDIF $
-  ELSE BEGIN
-     IF (gn(assoc) EQ 1) THEN BEGIN
-        IF (MIN(ABS(gfit.comp.(assoc).v_off.val - gfit.comp.(assoc).v_off.limits), /nan) LT 100) THEN $
-           line.quality += 64
-     ENDIF
-     IF (line.voff_err GT 500) THEN line.quality += 128
-  ENDELSE
+
+  IF (gfit.comp.(icomp).v_off.fixed EQ 0) THEN BEGIN
+     IF (~FINITE(line.voff)       OR    $
+         ~FINITE(line.voff_err)   OR    $
+         (line.voff     EQ 0)     OR    $
+         (line.voff_err LE 0)     ) THEN BEGIN
+        line.quality += 32
+     ENDIF $
+     ELSE BEGIN
+        IF (gn(assoc) EQ 1) THEN BEGIN
+           IF (MIN(ABS(gfit.comp.(assoc).v_off.val - gfit.comp.(assoc).v_off.limits), /nan) LT 100) THEN $
+              line.quality += 64
+        ENDIF
+        IF (line.voff_err GT 500) THEN line.quality += 128
+     ENDELSE
+  ENDIF
 
 
   ;;Log QUALITY value
@@ -1580,7 +1681,33 @@ FUNCTION qsfit_iron_quality_meaning, bit
      0: RETURN, 'Bit 0: fit of iron template is not sensible at this redshift'
      1: RETURN, 'Bit 1: either the luminosity or its uncertainty are NaN'
      2: RETURN, 'Bit 2: luminosity relative uncertainty > 1.5'
-     ELSE: RETURN, 'Bit ' + gn2s(bit) + ' is not used in emission iron quality value'
+     ELSE: RETURN, 'Bit ' + gn2s(bit) + ' is not used in iron quality value'
+  ENDCASE
+END
+
+
+;=====================================================================
+;NAME:
+;  qsfit_balmer_quality_meaning
+;
+;PURPOSE:
+;  Return a message explaining the meaning of a bit in the Balmer high
+;  order lines (HOL) and continuum quality value.
+;
+;PARAMETERS:
+;  BIT (input, a scalar byte)
+;    The bit to whose meaning is to be retrieved.  The value must be
+;    in the range 0:4.
+;
+;RETURN VALUE: (a scalar string)
+;  A string explaining the meaning of a bit in the quality value.
+;
+FUNCTION qsfit_balmer_quality_meaning, bit
+  CASE bit OF
+     0: RETURN, 'Bit 0: fit of Balmer template is not sensible at this redshift'
+     1: RETURN, 'Bit 1: either the luminosity or its uncertainty are NaN'
+     2: RETURN, 'Bit 2: luminosity relative uncertainty > 1.5'
+     ELSE: RETURN, 'Bit ' + gn2s(bit) + ' is not used in Balmer quality value'
   ENDCASE
 END
 
@@ -1606,12 +1733,11 @@ FUNCTION qsfit_reduce
   gfit_eval, expr=expr
 
   ;;Prepare return structure
-  qsfit_log, out=log
   out  = { qsfit_version: qsfit_version()                       , $
+           opt:           !QSFIT_OPT                            , $
            file_output:   ''                                    , $
            gfit:          gfit                                  , $
            expr:          expr.(0)                              , $
-           log:           log                                   , $
            ndata:         gn(gfit.cmp.(0).x)                    , $
            good_fraction: gfit.data.(0).udata.goodFraction      , $
            median_flux:   FLOAT(gfit.data.(0).udata.median_flux), $
@@ -1729,35 +1855,37 @@ FUNCTION qsfit_reduce
 
            ;;Compute slope
            cont.slope = INTERPOL(slopes, xx, cont.wave)
-
-           ;;Compute slope uncertainty as the sum of the two slopes
-           ;;uncertainties.
            cont.slope_err = gnan()
-           IF (FINITE(gfit.comp.continuum.alpha1.err)) THEN BEGIN
-              cont.slope_err = gfit.comp.continuum.alpha1.err
-              IF (FINITE(gfit.comp.continuum.dalpha.err)) THEN $
-                 cont.slope_err += gfit.comp.continuum.dalpha.err
+
+           IF (gfit.data.(0).udata.z GT !QSFIT_OPT.alpha1_fixed_max_z) THEN BEGIN
+              ;;Compute slope uncertainty as the sum of the two slopes
+              ;;uncertainties.
+              IF (FINITE(gfit.comp.continuum.alpha1.err)) THEN BEGIN
+                 cont.slope_err = gfit.comp.continuum.alpha1.err
+                 IF (FINITE(gfit.comp.continuum.dalpha.err)) THEN $
+                    cont.slope_err += gfit.comp.continuum.dalpha.err
+              ENDIF
+
+              IF (~FINITE(cont.slope)            OR    $
+                  ~FINITE(cont.slope_err)        OR    $
+                  (ABS(cont.slope) EQ 0)         OR    $
+                  (cont.slope_err LE 0))  THEN BEGIN
+                 cont.slope     = gnan()
+                 cont.slope_err = gnan()
+                 cont.quality  += 8
+              ENDIF $
+              ELSE BEGIN
+                 IF (MIN(ABS(cont.slope - gfit.comp.continuum.alpha1.limits), /nan) LT 0.05) THEN $
+                    cont.quality += 16
+                 IF (cont.slope_err GT 0.3) THEN cont.quality += 32
+              ENDELSE
            ENDIF
 
-           IF (~FINITE(cont.slope)            OR    $
-               ~FINITE(cont.slope_err)        OR    $
-               (ABS(cont.slope) EQ 0)         OR    $
-               (cont.slope_err LE 0))  THEN BEGIN
-              cont.slope     = gnan()
-              cont.slope_err = gnan()
-              cont.quality  += 8
-           ENDIF $
-           ELSE BEGIN
-              IF (MIN(ABS(cont.slope - gfit.comp.continuum.alpha1.limits), /nan) LT 0.05) THEN $
-                 cont.quality += 16
-              IF (cont.slope_err GT 0.3) THEN cont.quality += 32
-           ENDELSE
+           IF (gfit.comp.galaxy.enabled) THEN BEGIN
+              IF (cont.galaxy GT 5*cont.lum) THEN $
+                 cont.quality += 64
+           ENDIF
         ENDELSE
-
-        IF (gfit.comp.galaxy.enabled) THEN BEGIN
-           IF (cont.galaxy GT 0.5*cont.lum) THEN $
-              cont.quality += 64
-        ENDIF
      ENDELSE
 
      ;;Log QUALITY value
@@ -1781,7 +1909,7 @@ FUNCTION qsfit_reduce
       IF ((allcont[i].quality AND 2b^6) GT 0) THEN $
          slopeBiased = 1
    ENDFOR
-
+   
    IF (slopeBiased) THEN BEGIN
       FOR i=0, ncont + gn(fixed_wave)-1 DO BEGIN
          IF ((allcont[i].quality AND 2b^6) EQ 0) THEN $
@@ -1803,65 +1931,67 @@ FUNCTION qsfit_reduce
 
   ;;--------------------------
   ;;Reduce iron templates data
-  gassert, gfit.comp.ironuv0.norm.val    GE 0
-  gassert, gfit.comp.ironuv1.norm.val    GE 0
-  gassert, gfit.comp.ironuv2.norm.val    GE 0
-  gassert, gfit.comp.ironuv3.norm.val    GE 0
+  gassert, gfit.comp.ironuv.ew.val       GE 0
   gassert, gfit.comp.ironopt.norm_br.val GE 0
   gassert, gfit.comp.ironopt.norm_na.val GE 0
 
 
-  FOR iPart=0, 3 DO BEGIN
-     i = WHERE(TAG_NAMES(gfit.comp) EQ 'IRONUV' + gn2s(iPart))
-     gassert, i[0] NE -1
+  i = WHERE(TAG_NAMES(gfit.comp) EQ 'IRONUV')
+  gassert, i[0] NE -1
 
-     ;;Result structure
-     iron = { lum:      gfit.comp.(i).norm.val, $
-              lum_err:  gfit.comp.(i).norm.err, $
-              fwhm:     gfit.comp.(i).fwhm.val, $
-              fwhm_err: gfit.comp.(i).fwhm.err, $
-              quality:  0b                      $
-            }
+  ;;Result structure
+  iron = { ew:       gfit.comp.(i).ew.val  , $
+           ew_err:   gfit.comp.(i).ew.err  , $
+           fwhm:     gfit.comp.(i).fwhm.val, $
+           fwhm_err: gfit.comp.(i).fwhm.err, $
+           quality:  0b                      $
+         }
 
-     IF (~gfit.comp.(i).enabled) THEN BEGIN
-        iron.lum      = gnan()
-        iron.lum_err  = gnan()
-        iron.fwhm     = gnan()
-        iron.fwhm_err = gnan()
-        iron.quality  = 1
+  IF (~gfit.comp.(i).enabled) THEN BEGIN
+     iron.ew       = gnan()
+     iron.ew_err   = gnan()
+     iron.fwhm     = gnan()
+     iron.fwhm_err = gnan()
+     iron.quality  = 1
+  ENDIF $
+  ELSE BEGIN
+     IF (~FINITE(iron.ew)        OR    $
+         ~FINITE(iron.ew_err)    OR    $
+         (iron.ew     LE 0)      OR    $
+         (iron.ew_err LE 0)      ) THEN BEGIN
+        iron.quality = 2
      ENDIF $
      ELSE BEGIN
-        IF (~FINITE(iron.lum)       OR    $
-            ~FINITE(iron.lum_err)   OR    $
-            (iron.lum     LE 0)     OR    $
-            (iron.lum_err LE 0)     ) THEN BEGIN
-           iron.quality = 2
-        ENDIF $
-        ELSE BEGIN
-           IF (iron.lum_err / iron.lum GT 1.5) THEN BEGIN ;;CUSTOMIZABLE
-              iron.quality += 4
-           ENDIF
-        ENDELSE
+        IF (iron.ew_err / iron.ew GT 1.5) THEN BEGIN ;;CUSTOMIZABLE
+           iron.quality += 4
+        ENDIF
      ENDELSE
-     out = CREATE_STRUCT(out, 'ironuv' + gn2s(iPart), iron)
+  ENDELSE
+  
+  out = CREATE_STRUCT(out, 'ironuv', iron)
+  
+  ;;Log QUALITY value
+  IF (iron.quality NE 0) THEN BEGIN
+     qsfit_log, 'Iron emission lines (UV):'
+     FOR b=0, 2 DO BEGIN
+        IF ((iron.quality AND 2b^b) GT 0) THEN $
+           qsfit_log, '  ' + qsfit_iron_quality_meaning(b)
+     ENDFOR
+  ENDIF
 
-     ;;Log QUALITY value
-     IF (iron.quality NE 0) THEN BEGIN
-        qsfit_log, 'Iron emission lines (UV, part ' + gn2s(iPart) + '):'
-        FOR b=0, 2 DO BEGIN
-           IF ((iron.quality AND 2b^b) GT 0) THEN $
-              qsfit_log, '  ' + qsfit_iron_quality_meaning(b)
-        ENDFOR
-     ENDIF
-  ENDFOR
 
 
   ;;Result structure
-  iron = { lum:      gfit.comp.ironopt.norm_br.val, $
-           lum_err:  gfit.comp.ironopt.norm_br.err, $
-           fwhm:     gfit.comp.ironopt.fwhm_br.val, $
-           fwhm_err: gfit.comp.ironopt.fwhm_br.err, $
-           quality:  0b                             $
+  iron = { lum:         gfit.comp.ironopt.norm_br.val, $
+           lum_err:     gfit.comp.ironopt.norm_br.err, $
+           fwhm:        gfit.comp.ironopt.fwhm_br.val, $
+           fwhm_err:    gfit.comp.ironopt.fwhm_br.err, $
+           unk_count:   0                            , $
+           unk_lum:     0.                           , $
+           unk_lum_err: 0.                           , $
+           ew:          gnan()                       , $
+           ew_err:      gnan()                       , $
+           quality:     0b                             $
          }
 
   IF (~gfit.comp.ironopt.enabled) THEN BEGIN
@@ -1883,7 +2013,30 @@ FUNCTION qsfit_reduce
            iron.quality += 4
         ENDIF
      ENDELSE
+
+     ;;Check whether an unknown lines falls within the range of the
+     ;;optical iron template
+     FOR iiunk=1, !QSFIT_OPT.unkLines DO BEGIN
+        iunk = WHERE(TAG_NAMES(gfit.comp) EQ 'UNK' + gn2s(iiunk))
+        gassert, iunk NE -1
+        IF ((gfit.comp.(iunk).center.val GT 4460 AND gfit.comp.(iunk).center.val LT 4680)  OR   $
+            (gfit.comp.(iunk).center.val GT 5150 AND gfit.comp.(iunk).center.val LT 5520)       $
+           ) THEN BEGIN
+           IF ((gfit.comp.(iunk).norm.val GT 0)  AND  $
+               (gfit.comp.(iunk).norm.err GT 0)) THEN BEGIN
+              iron.unk_count   += 1
+              iron.unk_lum     += gfit.comp.(iunk).norm.val
+              iron.unk_lum_err += gfit.comp.(iunk).norm.err
+           ENDIF
+        ENDIF
+     ENDFOR
   ENDELSE
+
+  IF (iron.quality EQ 0) THEN BEGIN
+     iron.ew = (iron.lum + iron.unk_lum) / INTERPOL(out.expr.expr_continuum, out.gfit.cmp.(0).x, 5052.03)
+     iron.ew_err = iron.ew * (iron.lum_err + iron.unk_lum_err) / (iron.lum + iron.unk_lum)
+  ENDIF
+
   out = CREATE_STRUCT(out, 'ironopt_br', iron)
 
   ;;Log QUALITY value
@@ -1901,6 +2054,8 @@ FUNCTION qsfit_reduce
            lum_err:  gfit.comp.ironopt.norm_na.err, $
            fwhm:     gfit.comp.ironopt.fwhm_na.val, $
            fwhm_err: gfit.comp.ironopt.fwhm_na.err, $
+           ew:          gnan()                    , $
+           ew_err:      gnan()                    , $
            quality:  0b                             $
          }
 
@@ -1924,6 +2079,12 @@ FUNCTION qsfit_reduce
         ENDIF
      ENDELSE
   ENDELSE
+
+  IF (iron.quality EQ 0) THEN BEGIN
+     iron.ew = iron.lum / INTERPOL(out.expr.expr_continuum, out.gfit.cmp.(0).x, 4661.98)
+     iron.ew_err = iron.ew * iron.lum_err / iron.lum
+  ENDIF
+
   out = CREATE_STRUCT(out, 'ironopt_na', iron)
 
   ;;Log QUALITY value
@@ -1939,24 +2100,101 @@ FUNCTION qsfit_reduce
   ;;--------------------------
   ;;Reduce emission lines data
   lines = qsfit_lineset()
+  
+  ;; Calculate the sum of all QSFit components except "known" emission lines
+  sum_wo_lines = expr.(0).model - expr.(0).expr_broadlines - expr.(0).expr_narrowlines
+
 
   alllines = []
   FOR j=0, gn(lines)-1 DO BEGIN
      IF (lines[j].type EQ 'N'  OR  lines[j].type EQ 'BN') THEN BEGIN
         tmp = qsfit_reduce_line('na_' + lines[j].name, lines[j].wave)
+        IF (FINITE(tmp.lum)  AND  FINITE(tmp.lum_err)) THEN BEGIN
+           tmp.ew = tmp.lum / INTERPOL(sum_wo_lines, gfit.cmp.(0).x, lines[j].wave, /nan)
+           tmp.ew_err = tmp.ew / tmp.lum * tmp.lum_err
+        ENDIF
         out = CREATE_STRUCT(out, 'na_' + lines[j].name, tmp)
         alllines = [alllines, gstru_insert(tmp, 'line', 'na_' + lines[j].name, 0)]
      ENDIF
 
      IF (lines[j].type EQ 'B'  OR  lines[j].type EQ 'BN') THEN BEGIN
         tmp = qsfit_reduce_line('br_' + lines[j].name, lines[j].wave)
+        IF (FINITE(tmp.lum)  AND  FINITE(tmp.lum_err)) THEN BEGIN
+           tmp.ew = tmp.lum / INTERPOL(sum_wo_lines, gfit.cmp.(0).x, lines[j].wave, /nan)
+           tmp.ew_err = tmp.ew / tmp.lum * tmp.lum_err
+        ENDIF
         out = CREATE_STRUCT(out, 'br_' + lines[j].name, tmp)
         alllines = [alllines, gstru_insert(tmp, 'line', 'br_' + lines[j].name, 0)]
      ENDIF
   ENDFOR
 
+  tmp = qsfit_reduce_line( 'line_ha_base', gfit.comp.line_ha_base.center.val, /noassoc)
+  out = CREATE_STRUCT(out, 'line_ha_base', tmp)
+  alllines = [alllines, gstru_insert(tmp, 'line', 'line_ha_base', 0)]
+
   ;;Save also all the lines results as an array
   out = CREATE_STRUCT(out, 'lines', alllines)
+
+  ;;-------------------------------------
+  ;;Reduce data from Balmer component
+  balmer = { norm:      gnan()                     , $
+             lum:       gfit.comp.balmer.norm.val  , $
+             lum_err:   gfit.comp.balmer.norm.err  , $
+             ratio:     gfit.comp.balmer.ratio.val , $
+             ratio_err: gfit.comp.balmer.ratio.err , $
+             logT:      gfit.comp.balmer.logT.val  , $
+             logT_err:  gfit.comp.balmer.logT.err  , $
+             logNe:     gfit.comp.balmer.logNe.val , $
+             logNe_err: gfit.comp.balmer.logNe.err , $
+             logTau:    gfit.comp.balmer.logTau.val, $
+             logTau_err:gfit.comp.balmer.logTau.err, $
+             fwhm:      gfit.comp.balmer.fwhm.val  , $
+             fwhm_err:  gfit.comp.balmer.fwhm.err  , $
+             quality:   0b }
+
+  IF (~gfit.comp.balmer.enabled) THEN BEGIN
+     balmer.lum       = gnan()
+     balmer.lum_err   = gnan()
+     balmer.logT      = gnan()
+     balmer.logT_err  = gnan()
+     balmer.logNe     = gnan()
+     balmer.logNe_err = gnan()
+     balmer.fwhm      = gnan()
+     balmer.fwhm_err  = gnan()
+     balmer.quality   = 1
+  ENDIF $
+  ELSE BEGIN
+     IF (~FINITE(balmer.lum)       OR    $
+         ~FINITE(balmer.lum_err)   OR    $
+         (balmer.lum     LE 0)     OR    $
+         (balmer.lum_err LE 0)     ) THEN BEGIN
+        balmer.quality = 2
+     ENDIF $
+     ELSE BEGIN
+        IF (balmer.lum_err / balmer.lum GT 1.5) THEN BEGIN ;;CUSTOMIZABLE
+           balmer.quality += 4
+        ENDIF
+     ENDELSE
+
+     balmer.norm     = balmer.lum
+     balmer.lum     *= 3000. * qsfit_comp_sbpowerlaw_l3000()
+     balmer.lum_err *= 3000. * qsfit_comp_sbpowerlaw_l3000()
+  ENDELSE
+     
+  out = CREATE_STRUCT(out, 'balmer', balmer)
+
+  ;;Log QUALITY value
+  IF (balmer.quality NE 0) THEN BEGIN
+     qsfit_log, 'Balmer template:'
+     FOR b=0, 2 DO BEGIN
+        IF ((balmer.quality AND 2b^b) GT 0) THEN $
+           qsfit_log, '  ' + qsfit_balmer_quality_meaning(b)
+     ENDFOR
+  ENDIF
+
+  ;;Add the logs
+  qsfit_log, out=log
+  out = CREATE_STRUCT(out, 'log', log)
 
   RETURN, out
 END
@@ -1964,22 +2202,30 @@ END
 
 ;=====================================================================
 ;NAME:
-;
-PRO qsfit_plot_current, filename
+;  
+PRO qsfit_show_step, filename
   COMMON GFIT
-  gfit.plot.(0).main.title = ''
-  rebin = gfit.plot.(0).main.rebin
-  gfit.plot.(0).main.rebin = 5
+  ;filename = []
+  IF (~!QSFIT_OPT.show_step) THEN RETURN
 
+  title = gfit.plot.(0).main.title
+  rebin = gfit.plot.(0).main.rebin
+
+  gfit.plot.(0).main.title = ''
+  gfit.plot.(0).main.rebin = 5
+  
   gfit_plot
   IF (gn(filename) EQ 1) THEN ggp, term='pdf', out=filename + '.pdf' $
   ELSE ggp
-
+  
   gfit_plot_resid
   IF (gn(filename) EQ 1) THEN ggp, term='pdf', out=filename + '_resid.pdf' $
   ELSE ggp
-
+  
   gfit.plot.(0).main.rebin = rebin
+  gfit.plot.(0).main.title = title
+  ;gfit_report
+  ;gkey
 END
 
 ;=====================================================================
@@ -1996,8 +2242,7 @@ PRO qsfit_run
   COMPILE_OPT IDL2
   ON_ERROR, !glib.on_error
   COMMON GFIT
-
-  showSteps = 0
+  COMMON COM_RESAMPLING, unkCenter, unkEnabled
 
   ;;Avoid logging on iterations
   gfit.opt.log_iter = 0
@@ -2005,53 +2250,82 @@ PRO qsfit_run
   ;;Stop when relative difference in chi-squared is at most 1.e-6
   gfit.opt.tol = 1.e-6 ;;CUSTOMIZABLE
 
-  ;;Fit continuum
+  ;;Fit continuum and Balmer templates
   qsfit_add_continuum
+  qsfit_add_balmer
   gfit_run
-  IF (showSteps) THEN qsfit_plot_current, 'Step1'
+  qsfit_show_step, 'Step1'
 
+  ;;Renormalize continuum to make room for other components
   qsfit_renormalize_cont
+  qsfit_show_step, 'Step2'
   qsfit_freeze, cont=1
-  IF (showSteps) THEN qsfit_plot_current, 'Step2'
 
   ;;Fit iron templates
   qsfit_add_iron
   gfit_run
+  qsfit_show_step, 'Step3'
   qsfit_freeze, iron=1
-  IF (showSteps) THEN qsfit_plot_current, 'Step3'
 
   ;;Fit "known" emission lines
   qsfit_add_lineset
   gfit_run
+  qsfit_show_step, 'Step4'
   qsfit_freeze, lines=1
-  IF (showSteps) THEN qsfit_plot_current, 'Step4'
+
+  ;;qsfit_freeze, cont=0, lines=0, iron=0
+  ;;gfit.comp.continuum.alpha1.fixed  = 0
+  ;;gfit_run
+  ;;gfit.comp.continuum.alpha1.fixed  = 1
 
   ;;Adding and fitting unknown lines can be very time-consuming.  In
   ;;order to save computation time we freeze all other line
   ;;parameters, and thaw them in the last fit.
-  qsfit_freeze, lines=1, iron=1
+  qsfit_freeze, cont=1, lines=1, iron=1
 
   ;;Add "unknown" emission lines
   qsfit_add_unknown
-  IF (showSteps) THEN qsfit_plot_current, 'Step5'
+  qsfit_show_step, 'Step5'
 
   ;;Run with all parameters freee
   gprint, 'Last run with all parameters free'
   qsfit_freeze, cont=0, iron=0, line=0
+  gfit.comp.ironopt.norm_na.fixed = 0 ;free narrow optical iron normizalization
   gfit_run
+  qsfit_show_step, 'Step6'
 
   ;;Disable "unknown" lines whose normalization uncertainty is larger
   ;;than 3 times the normalization
-  rerun = 0
-  FOR iiunk=1, qsfit_nunklines() DO BEGIN
-     iunk = WHERE(TAG_NAMES(gfit.comp) EQ 'UNK' + gn2s(iiunk))
-     gassert, iunk NE -1
-     IF (gfit.comp.(iunk).norm.err / gfit.comp.(iunk).norm.val GT 3) THEN BEGIN
-        rerun = 1
-        qsfit_log, 'Disabling line ' + gfit.comp.(iunk).name
-        gfit.comp.(iunk).enabled = 0
-     ENDIF
-  ENDFOR
+  IF (gn(unkEnabled) EQ 0) THEN BEGIN
+     rerun = 0
+     FOR iiunk=1, !QSFIT_OPT.unkLines DO BEGIN
+        iunk = WHERE(TAG_NAMES(gfit.comp) EQ 'UNK' + gn2s(iiunk))
+        gassert, iunk NE -1
+        IF (gfit.comp.(iunk).norm.err / gfit.comp.(iunk).norm.val GT 3) THEN BEGIN
+           rerun = 1
+           qsfit_log, 'Disabling line ' + gfit.comp.(iunk).name
+           gfit.comp.(iunk).enabled = 0
+        ENDIF
+     ENDFOR
+
+     ;;Save the enabled/disabled switch for each unknown line
+     unkEnabled = REPLICATE(0b, !QSFIT_OPT.unkLines)
+     FOR iiunk=1, !QSFIT_OPT.unkLines DO BEGIN
+        iunk = WHERE(TAG_NAMES(gfit.comp) EQ 'UNK' + gn2s(iiunk))
+        unkEnabled[iiunk-1] = gfit.comp.(iunk).enabled
+     ENDFOR
+  ENDIF $
+  ELSE BEGIN
+     ;;Enable/disable the same unknown lines we used in the main analysis.
+     FOR iiunk=1, !QSFIT_OPT.unkLines DO BEGIN
+        iunk = WHERE(TAG_NAMES(gfit.comp) EQ 'UNK' + gn2s(iiunk))
+        gassert, iunk NE -1
+        IF (~unkEnabled[iiunk-1]) THEN $
+           qsfit_log, 'Disabling line ' + gfit.comp.(iunk).name
+        gfit.comp.(iunk).enabled = unkEnabled[iiunk-1]
+     ENDFOR
+     rerun = 1
+  ENDELSE
 
   ;;Re-run fitting if needed
   IF (rerun) THEN BEGIN
@@ -2059,7 +2333,7 @@ PRO qsfit_run
      gfit_run
   ENDIF
 
-  IF (showSteps) THEN qsfit_plot_current, 'Step6'
+  qsfit_show_step, 'Step7'
 END
 
 
@@ -2080,7 +2354,7 @@ PRO qsfit_report, red
   ON_ERROR, !glib.on_error
   COMMON GFIT
 
-
+  
   PRINT
   PRINT
   PRINT
@@ -2104,6 +2378,14 @@ PRO qsfit_report, red
   gprint, ' Continuum '
   gps, red.cont
 
+
+  IF (!QSFIT_OPT.balmer) THEN BEGIN
+     gprint
+     gprint
+     gprint, ' Balmer template '
+     gps, red.balmer
+  ENDIF
+
   gprint
   gprint
   gprint, ' Host galaxy '
@@ -2113,7 +2395,7 @@ PRO qsfit_report, red
   gprint
   gprint, ' Iron emission lines (UV)'
   gprint, 'UV:'
-  gps, [red.ironuv0, red.ironuv1, red.ironuv2, red.ironuv3]
+  gps, [red.ironuv]
 
   gprint
   gprint, ' Iron emission lines (optical, broad components)'
@@ -2155,7 +2437,13 @@ END
 ;  FILENAME= (optional input, a scalar string)
 ;    Path and file name prefix to save the gnuplot script files.
 ;
-PRO qsfit_plot, red, FILENAME=filename, s11=s11
+;  RESID= (optional input, either 0 or 1)
+;    Disable (0) or enable (1) the plotting of residuals (default: 1).
+;
+;  TERM= (optional input, a scalar string)
+;    Passed to the TERM input of ggp
+;
+PRO qsfit_plot, red, FILENAME=filename, s11=s11, RESID=resid, TERM=term
   COMPILE_OPT IDL2
   ON_ERROR, !glib.on_error
 
@@ -2167,7 +2455,7 @@ PRO qsfit_plot, red, FILENAME=filename, s11=s11
   ;;Plot continuum luminosities and slopes from QSFIT
   ggp_data, red.cont.wave, red.cont.lum / red.cont.wave, red.cont.lum_err / red.cont.wave, $
             pl='w yerrorbars title "Cont. lum." pt 5 ps 1 lc rgb "red"'
-
+  
   ;;FOR i=0, gn(red.cont)-1 DO BEGIN
   ;;   xx = red.cont[i].wave * [0.98, 1.02]
   ;;   yy = (xx / red.cont[i].wave)^red.cont[i].slope
@@ -2180,7 +2468,7 @@ PRO qsfit_plot, red, FILENAME=filename, s11=s11
      xx = [1350, 3000, 5100]
      yy = [s11.logl1350, s11.logl3000, s11.logl5100]
      ll = 10.d^(yy-42) / xx
-
+     
      r0 = [1465, 2700, 4700, 6250]
      r1 = [1700, 2900, 5100, 6800]
      aa = [s11.alpha_civ, s11.alpha_mgii, s11.alpha_hb, s11.alpha_ha]
@@ -2208,13 +2496,26 @@ PRO qsfit_plot, red, FILENAME=filename, s11=s11
   ENDIF
 
   ;;Save or show plots
-  IF (gn(filename) EQ 1) THEN ggp, gp=filename+'.gp' $
+  IF (gn(filename) EQ 1) THEN BEGIN
+     IF (KEYWORD_SET(term)) THEN $
+        ggp, output=filename+'.'+term, term=term $
+     ELSE $
+        ggp, output=filename, gp=filename+'.gp'
+  ENDIF $
   ELSE ggp
 
   ;;Plot residuals
-  gfit_plot_resid
-  IF (gn(filename) EQ 1) THEN ggp, gp=filename+'_resid.gp' $
-  ELSE ggp
+  IF (gn(resid) EQ 0) THEN resid = 1
+  IF (resid) THEN BEGIN
+     gfit_plot_resid
+     IF (gn(filename) EQ 1) THEN BEGIN
+        IF (KEYWORD_SET(term)) THEN $
+           ggp, output=filename+'_resid.'+term, term=term $
+        ELSE $
+           ggp, output=filename+'_resid', gp=filename+'_resid.gp'
+     ENDIF $
+     ELSE ggp
+  ENDIF
 END
 
 
@@ -2240,7 +2541,7 @@ FUNCTION qsfit_flatten_results, red
   out = gstru_insert(out, 'chisq', red.gfit.res.test_stat)
   out = gstru_insert(out, 'dof'  , red.gfit.res.test_dof)
   out = gstru_insert(out, 'elapsed_time', red.gfit.res.elapsed_time)
-  out = gstru_sub(out, drop=['file_output', 'gfit', 'expr', 'log', 'cont', 'lines'])
+  out = gstru_sub(out, drop=['file_output', 'gfit', 'expr', 'log', 'cont', 'lines', 'opt'])
   out = gstru_flatten(out)
   RETURN, out
 END
@@ -2272,15 +2573,23 @@ END
 ;    execution.
 ;
 ;  _EXTRA= (optional input)
-;    Keywords passed to qsfit_prepare.
+;    Keywords passed to qsfit_read_SDSS_DR10.
 ;
 ;RETURN VALUE:
 ;  The structure returned by qsfit_reduce().
 ;
-FUNCTION qsfit, file, OUTDIR=outdir, PROCID=procid, TICTOC=tictoc, _EXTRA=extra
+FUNCTION qsfit, file, OUTDIR=outdir, PROCID=procid, TICTOC=tictoc, RESAMPLE=resample, _EXTRA=extra
   COMPILE_OPT IDL2
   COMMON GFIT
+  COMMON COM_RESAMPLING, unkCenter, unkEnabled
   ON_ERROR, !glib.on_error
+
+  IF (gn(resample) EQ 0) THEN resample = 1
+  IF (gn(procid) EQ 0) THEN procid = 0
+
+  ;;Ensure unknown line center are evaluated according to current data
+  unkCenter  = []
+  unkEnabled = []
 
   ;;Ensure any previously opened file is closed
   gprint_mgr, /close
@@ -2301,6 +2610,31 @@ FUNCTION qsfit, file, OUTDIR=outdir, PROCID=procid, TICTOC=tictoc, _EXTRA=extra
   IF (~gfexists(file)) THEN $
      MESSAGE, 'Input file ' + file + ' do not exists!'
 
+  readFromSaved = (STRPOS(file, 'QSFIT.dat') NE -1)
+  IF (readFromSaved) THEN BEGIN
+     ;;Input file is a previously written QSFIT result file.  Read it
+     ;;as if it was the original FITS.
+     RESTORE, file
+
+     backup_file = file
+     file = qsfit_res.gfit.data.(0).udata.file + '.fits'
+     extra = { $
+             id : qsfit_res.gfit.data.(0).udata.id, $
+             z  : qsfit_res.gfit.data.(0).udata.z , $
+             ebv: qsfit_res.gfit.data.(0).udata.ebv  }
+
+     ;;Setup GFIT
+     gfit_init
+     gfit_add_data, qsfit_res.gfit.data.(0).x, qsfit_res.gfit.data.(0).y, qsfit_res.gfit.data.(0).e, UDATA=qsfit_res.gfit.data.(0).udata
+     gfit.data.(0).group = qsfit_res.gfit.data.(0).group
+     gfit_prepare_cmp
+     qsfit_ignore_data_on_missing_lines
+     tmp = gfit.plot
+     STRUCT_ASSIGN, qsfit_res.gfit.plot, tmp
+     gfit.plot = TEMPORARY(tmp)
+     qsfit_res = [] ;;No longer needed
+  ENDIF
+
   IF (KEYWORD_SET(outdir)) THEN BEGIN
      fi = FILE_INFO(outdir)
      IF (~fi.exists  OR  ~fi.directory) THEN $
@@ -2316,7 +2650,11 @@ FUNCTION qsfit, file, OUTDIR=outdir, PROCID=procid, TICTOC=tictoc, _EXTRA=extra
   gassert, outName NE ''
   outName += '_QSFIT'
   file_dat = outName + '.dat'
+  IF (resample GT 1) THEN $
+     file_dat = outName + '_MC'+gn2s(procid) + '.dat'
   file_log = outName + '.log'
+  IF (resample GT 1) THEN $
+     file_log = outName + '_MC'+gn2s(procid) + '.log'
 
   ;;Check whether file_dat already exists
   IF (gfexists(file_dat)  AND  KEYWORD_SET(outdir))  THEN BEGIN
@@ -2324,62 +2662,111 @@ FUNCTION qsfit, file, OUTDIR=outdir, PROCID=procid, TICTOC=tictoc, _EXTRA=extra
      RESTORE, file_dat
      RETURN, qsfit_res
   ENDIF
+  
 
-  ;;Estimate elapsed time
-  timeStart = SYSTIME(1)
-  IF (KEYWORD_SET(tictoc)) THEN TIC, /profiler
+  FOR iresample=1, resample DO BEGIN
+     ;;Estimate elapsed time
+     timeStart = SYSTIME(1)
+     IF (KEYWORD_SET(tictoc)) THEN TIC, /profiler
 
-  ;;Empty log queue
-  qsfit_log, out=dummy
-  dummy = []
+     ;;Empty log queue
+     qsfit_log, out=dummy
+     dummy = []
 
-  ;;Log input parameters
-  gprint, '********************************************************************************'
-  qsfit_log, 'QSFIT_SDSS10, ver. ' + qsfit_version()
-  qsfit_log, '  started at ' + SYSTIME()
-  qsfit_log
-  qsfit_log, 'Input FILE   : ' + file
-  IF (KEYWORD_SET(outidr)) THEN BEGIN
-     qsfit_log, 'Output file  : ' + file_dat
-     qsfit_log, 'Log file     : ' + file_log
-  ENDIF
-  qsfit_log
+     ;;Log input parameters
+     gprint, '********************************************************************************'
+     qsfit_log, 'QSFIT_SDSS10, ver. ' + qsfit_version()
+     qsfit_log, '  started at ' + SYSTIME()
+     IF (resample GT 1) THEN $
+        qsfit_log, "Resampling sequence: " + gn2s(iresample) + " / " + gn2s(resample)
+     qsfit_log
+     qsfit_log, 'Input FILE   : ' + file
+     IF (KEYWORD_SET(outidr)) THEN BEGIN
+        qsfit_log, 'Output file  : ' + file_dat
+        qsfit_log, 'Log file     : ' + file_log
+     ENDIF
+     qsfit_log
 
-  IF (KEYWORD_SET(extra)) THEN BEGIN
-     qsfit_log, 'Extra keywords:'
-     gps, extra, row=0, out=tmp
-     FOR i=0, gn(tmp)-1 DO $
-        qsfit_log, tmp[i]
-  ENDIF
-  qsfit_log
+     IF (KEYWORD_SET(extra)) THEN BEGIN
+        qsfit_log, 'Extra keywords:'
+        gps, extra, row=0, out=tmp
+        FOR i=0, gn(tmp)-1 DO $
+           qsfit_log, tmp[i]
+     ENDIF
+     qsfit_log
 
-  ;;Load data into GFIT
-  qsfit_prepare, file, _EXTRA=extra
+     ;;Load data into GFIT
+     IF (~readFromSaved) THEN $
+        qsfit_read_SDSS_DR10, file, _EXTRA=extra
 
-  ;;Set Process ID
-  gfit.opt.pid = 0
-  IF (gn(procid) EQ 1) THEN $
-     gfit.opt.pid = LONG(procid[0])
+     ;;Set Process ID
+     gfit.opt.pid = 0
+     IF (gn(procid) EQ 1) THEN $
+        gfit.opt.pid = LONG(procid[0])
 
-  ;;Run QSFIT analysis and reduce results
-  qsfit_run
-  qsfit_res = qsfit_reduce()
+     IF (iresample GT 1) THEN BEGIN
+        ;;Re-sample data set
+        IF (gn(seed) EQ 0) THEN seed = procid
+        ;gfit.data.(0).y += gfit.data.(0).e * RANDOMN(seed, gn(gfit.data.(0).y))
+        tmp = WHERE( gfit.data.(0).group GE 0 )
+        gfit.data.(0).y[tmp] = all_res[0].gfit.cmp.(0).m + gfit.data.(0).e[tmp] * RANDOMN(seed, gn(tmp))
+     ENDIF
 
-  ;;Store elapsed time
-  qsfit_res.gfit.res.elapsed_time = SYSTIME(1) - timeStart
+     ;;Run QSFIT analysis and reduce results
+     qsfit_run
+     qsfit_res = qsfit_reduce()
 
-  ;;Log results
-  gprint
-  gprint
-  IF (KEYWORD_SET(outdir)) THEN gprint_mgr, file=file_log
-  qsfit_report, qsfit_res
-  gprint, 'Total elapsed time: ' + gn2s(qsfit_res.gfit.res.elapsed_time) + ' seconds.'
-  gprint
+     ;;Store elapsed time
+     qsfit_res.gfit.res.elapsed_time = SYSTIME(1) - timeStart
+
+     ;;Log results
+     gprint
+     gprint
+     IF (KEYWORD_SET(outdir)) THEN gprint_mgr, file=file_log, append=(iresample GT 1)
+     qsfit_report, qsfit_res
+     gprint, 'Total elapsed time: ' + gn2s(qsfit_res.gfit.res.elapsed_time) + ' seconds.'
+     gprint
+
+     ;;Collect all results
+     IF (resample GT 1) THEN BEGIN
+        IF (gn(all_res) EQ 0) THEN $
+           all_res = REPLICATE(qsfit_res, resample)
+
+        ;;Ensure the only difference is in the .LOG array
+        aa = gstru_sub(all_res[0], drop='log')
+        bb = gstru_sub(qsfit_res , drop='log')
+        aa[0] = bb
+        aa = []
+        bb = []
+
+        IF (gn(all_res[0].log) LT gn(qsfit_res.log)) THEN BEGIN
+           tmp = REPLICATE(qsfit_res, resample)
+           FOR itmp=0, iresample-2 DO BEGIN
+              aa = qsfit_res
+              aa.log = ""
+              STRUCT_ASSIGN, all_res[itmp], aa
+              tmp[itmp] = aa
+           ENDFOR
+           all_res = TEMPORARY(tmp)
+           aa = []
+        ENDIF
+
+        tmp = all_res[0]
+        tmp.log = ""
+        STRUCT_ASSIGN, qsfit_res, tmp
+        all_res[iresample-1] = tmp
+     ENDIF
+
+     IF (KEYWORD_SET(outdir)) THEN BEGIN
+        gprint_mgr, /close
+        gprint, 'Log file: ' + file_log
+     ENDIF
+  ENDFOR
+
+  IF (resample GT 1) THEN $
+     qsfit_res = TEMPORARY(all_res)
 
   IF (KEYWORD_SET(outdir)) THEN BEGIN
-     gprint_mgr, /close
-     gprint, 'Log file: ' + file_log
-
      ;;Save results
      qsfit_log, 'Results saved in: ' + file_dat
      qsfit_res.file_output = outName
@@ -2394,6 +2781,9 @@ FUNCTION qsfit, file, OUTDIR=outdir, PROCID=procid, TICTOC=tictoc, _EXTRA=extra
      d=d[SORT(d.name)]
      gps, d
   ENDIF
+
+  IF (readFromSaved) THEN $
+     file = backup_file
 
   RETURN, qsfit_res
 END

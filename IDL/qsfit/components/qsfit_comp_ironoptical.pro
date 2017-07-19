@@ -119,16 +119,42 @@ PRO qsfit_comp_ironoptical_prepare, templ_br, templ_na
      ggp_clear
      ggp_cmd, xtit='Wavelength [AA]', ytit='Flux density [arb. units]'
      dummy = MIN(ABS(templ_br.fwhm - 3000), i3000)
-     FOREACH i, [0, i3000, gn(templ_br.fwhm)-1] DO $
+     FOREACH i, [0, i3000, gn(templ_br.fwhm)-1] DO BEGIN
         ggp_data, templ_br.x, templ_br.y[*,i], plot='w l t "FWHM=' + gn2s(templ_br.fwhm[i]) + ' km/s"'
+
+        x  = templ_br.x
+        y0 = templ_br.y[*,i]
+        xref = INT_TABULATED(x, x*y0)
+        y1 = (x/xref)^(0.5)
+        y2 = (x/xref)^(-3.)
+        PRINT, 'BR ', templ_br.fwhm[i], xref, INT_TABULATED(x, y0/y1), INT_TABULATED(x, y0/y2)
+      END
      ggp
 
      ggp_clear
      ggp_cmd, xtit='Wavelength [AA]', ytit='Flux density [arb. units]'
      dummy = MIN(ABS(templ_na.fwhm - 300), i300)
-     FOREACH i, [0, i3000, gn(templ_na.fwhm)-1] DO $
+     FOREACH i, [0, i300, gn(templ_na.fwhm)-1] DO BEGIN
         ggp_data, templ_na.x, templ_na.y[*,i], plot='w l t "FWHM=' + gn2s(templ_na.fwhm[i]) + ' km/s"'
+
+        x  = templ_na.x
+        y0 = templ_na.y[*,i]
+        xref = INT_TABULATED(x, x*y0)
+        y1 = (x/xref)^(0.5)
+        y2 = (x/xref)^(-3.)
+        PRINT, 'NA ', templ_na.fwhm[i], xref, INT_TABULATED(x, y0/y1), INT_TABULATED(x, y0/y2)
+     END
      ggp
+
+     ;;BR/NA    FWHM         xref         slope=0.5    slope=-3
+     ;;BR       1000.00      5052.03      1.01169      1.09531
+     ;;BR       3010.51      5052.03      1.01169      1.09537
+     ;;BR       20000.0      5050.49      1.01195      1.09751
+
+     ;;NA       100.000      4619.20      1.00828      1.07443
+     ;;NA       300.788      4661.23      1.00829      1.07389
+     ;;NA       500.031      4661.98      1.00829      1.07386
+     ;;NA       1000.00      4662.12      1.00829      1.07386
   ENDIF
 END
 

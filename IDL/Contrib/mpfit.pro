@@ -3097,6 +3097,7 @@ function mpfit, fcn, xall, FUNCTARGS=fcnargs, SCALE_FCN=scalfcn, $
                  (limited[1,*] AND xall GT limits[1,*]), ct)
       if ct GT 0 then begin
           errmsg = 'ERROR: parameters are not within PARINFO limits'
+          gprint, parinfo[wh].comp + ' ' + parinfo[wh].comp, xall[wh], limits[0,wh], limits[1,wh]
           goto, TERMINATE
       endif
       wh = where(limited[0,*] AND limited[1,*] AND $

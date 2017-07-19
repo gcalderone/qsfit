@@ -146,12 +146,12 @@ FUNCTION ggp_hist        $
      G1 = 0 * G0
      B1 = 1 * B0
 
-     R2 = 0 * R0
-     G2 = 1 * G0
+     R2 = 1 * R0
+     G2 = 0 * G0
      B2 = 0 * B0
 
-     R3 = 1 * R0
-     G3 = 0 * G0
+     R3 = 0 * R0
+     G3 = 1 * G0
      B3 = 0 * B0
      
      CASE (gn(clevels)) OF 

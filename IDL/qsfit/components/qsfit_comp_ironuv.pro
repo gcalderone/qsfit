@@ -42,7 +42,7 @@
 ;  Vestergaard and Wilkes, 2001, ApJS, 134, 1V
 ;  http://adsabs.harvard.edu/abs/2001ApJS..134....1V
 ;
-FUNCTION qsfit_comp_ironuv_prepare
+FUNCTION qsfit_comp_ironuv_prepare, ref_x, ref_y
   COMPILE_OPT IDL2
   ON_ERROR, !glib.on_error
 
@@ -111,59 +111,53 @@ FUNCTION qsfit_comp_ironuv_prepare
   ;;Prepare an evenly spaced logarithmic wavelength grid
   log_x = ggen(ALOG10(gminmax(ref_x)), 1e4)
 
-  ;;Split at these wavelengths
-  split = [2140, 2654, 2800]
-  gprint, 'Split template at wavelengths: ' + STRJOIN(gn2s(split), ', ') + ' AA'
-
   ;;Prepare return structure
   templ = {  x:   ref_x,                        $
              y:   FLTARR(gn(ref_x), gn(fwhm)),  $
              fwhm: fwhm                         $
           }
-  templ = REPLICATE(templ, gn(split)+1)
 
+  ;;Interpolate template on this grid
+  log_y = INTERPOL(ref_y, ref_x, 10.d^log_x)
+  FOR i=0, gn(fwhm)-1 DO BEGIN
+     ;;Compute sigma of Gaussian profile in units of km s^-1
+     sigma = SQRT(fwhm[i]^2. - ref_fwhm^2.) / 2.35
 
-  split = [MIN(10.d^log_x), split, MAX(10.d^log_x)]
-  FOR iSplit=0, gn(split)-2 DO BEGIN
-     ;;Interpolate template on this grid
-     log_y = INTERPOL(ref_y, ref_x, 10.d^log_x)
+     ;;Normalize by c
+     sigma /= 3.e5
 
-     ii = WHERE(10.d^log_x LT split[iSplit]  OR  10.d^log_x GT split[iSplit+1])
-     gassert, ii[0] NE -1
-     log_y[ii] = 0
+     ;;Prepare the convolution kernel: a Gaussian profile
+     gauss = ggauss(log_x, MEAN(log_x), sigma)
+     gauss = gauss[WHERE(gauss GT MAX(gauss)/1.e3)]
 
-     FOR i=0, gn(fwhm)-1 DO BEGIN
-        ;;Compute sigma of Gaussian profile in units of km s^-1
-        sigma = SQRT(fwhm[i]^2. - ref_fwhm^2.) / 2.35
+     ;;Convolve template and switch back to linear wavelength space
+     templ.y[*,i] = INTERPOL( $
+                    CONVOL(log_y, gauss, /edge_zero, /norm), $
+                    10.d^log_x, ref_x)
 
-        ;;Normalize by c
-        sigma /= 3.e5
-
-        ;;Prepare the convolution kernel: a Gaussian profile
-        gauss = ggauss(log_x, MEAN(log_x), sigma)
-        gauss = gauss[WHERE(gauss GT MAX(gauss)/1.e3)]
-
-        ;;Convolve template and switch back to linear wavelength space
-        templ[iSplit].y[*,i] = INTERPOL( $
-                               CONVOL(log_y, gauss, /edge_zero, /norm), $
-                               10.d^log_x, ref_x)
-
-        ;;Ensure template is normalized
-        templ[iSplit].y[*,i] /= INT_TABULATED(templ[iSplit].x, templ[iSplit].y[*,i])
-     ENDFOR
+     ;;Ensure template is normalized
+     templ.y[*,i] /= INT_TABULATED(templ.x, templ.y[*,i])
   ENDFOR
   
   IF (0) THEN BEGIN
-     FOR iSplit=0, gn(split)-2 DO BEGIN
-        ggp_clear
-        ggp_cmd, xtit='Wavelength [AA]', ytit='Flux density [arb. units]'
-        ggp_data, ref_x, ref_y, plot='w l t "FWHM=' + gn2s(ref_fwhm) + ' km/s (ref)"'
-        dummy = MIN(ABS(templ[iSplit].fwhm - 3000), i3000)
-        FOREACH i, [0, i3000, gn(templ[iSplit].fwhm)-1] DO $
-           ggp_data, templ[iSplit].x, templ[iSplit].y[*,i], plot='w l t "FWHM=' + gn2s(templ[iSplit].fwhm[i]) + ' km/s"'
-        ggp
-        gkey
-     ENDFOR
+     ggp_clear
+     ggp_cmd, xtit='Wavelength [AA]', ytit='Flux density [arb. units]'
+     ggp_data, ref_x, ref_y, plot='w l t "FWHM=' + gn2s(ref_fwhm) + ' km/s (ref)"'
+     dummy = MIN(ABS(templ.fwhm - 3000), i3000)
+     FOREACH i, [0, i3000, gn(templ.fwhm)-1] DO BEGIN
+        ggp_data, templ.x, templ.y[*,i], plot='w l t "FWHM=' + gn2s(templ.fwhm[i]) + ' km/s"'
+        
+        x  = templ.x
+        y0 = templ.y[*,i]
+        xref = 2350.;INT_TABULATED(x, x*y0)
+        
+        y1 = (x/xref)^(0.5)
+        y2 = (x/xref)^(-1.7)
+        y3 = (x/xref)^(-3.)
+
+        PRINT, templ.fwhm[i], xref, INT_TABULATED(x, y0/y1), INT_TABULATED(x, y0/y2), INT_TABULATED(x, y0/y3)
+     END
+     ggp
   ENDIF
 
   RETURN, templ
@@ -187,20 +181,17 @@ PRO qsfit_comp_ironuv_init, comp
   ENDIF
   cur = []
 
-  comp.norm.val = 0.01
-  comp.norm.limits[0] = 0
+  comp.ew.val = 100
+  comp.ew.limits[0] = 0
 
   comp.fwhm.val    = 3000
   comp.fwhm.limits = gminmax(templ.fwhm)
   comp.fwhm.step   = 200
 END
 
-FUNCTION qsfit_comp_ironuv_part
-  RETURN, 2
-END
 
 
-FUNCTION qsfit_comp_ironuv, x, norm, fwhm, part=part
+FUNCTION qsfit_comp_ironuv, x, ew, fwhm
   COMPILE_OPT IDL2
   ON_ERROR, !glib.on_error
   COMMON COM_qsfit_comp_ironuv
@@ -208,11 +199,9 @@ FUNCTION qsfit_comp_ironuv, x, norm, fwhm, part=part
   ;;Initialize templates using current X values
   IF (gn(cur) EQ 0) THEN BEGIN
      gprint, 'Interpolation of Vestergaard and Wilkes (2001) UV iron template...'
-     cur = FLTARR(gn(x), gn(templ[part].fwhm), gn(templ))
-     FOR iPart=0, gn(templ)-1 DO BEGIN
-        FOR i=0, gn(templ[iPart].fwhm)-1 DO BEGIN
-           cur[*, i, iPart] = INTERPOL(REFORM(templ[iPart].y[*,i]), templ[iPart].x, x)
-        ENDFOR
+     cur = FLTARR(gn(x), gn(templ.fwhm))
+     FOR i=0, gn(templ.fwhm)-1 DO BEGIN
+        cur[*, i] = INTERPOL(REFORM(templ.y[*,i]), templ.x, x)
      ENDFOR
 
      ;;For high values of FWHM the template may not go to zero and the
@@ -222,7 +211,8 @@ FUNCTION qsfit_comp_ironuv, x, norm, fwhm, part=part
   ENDIF
 
   ;;Search for the template with the closest value of FWHM
-  dummy = MIN(ABS(fwhm - templ[part].fwhm), i)
-  ret = norm * REFORM(cur[*, i, part])
+  dummy = MIN(ABS(fwhm - templ.fwhm), i)
+
+  ret = ew * qsfit_comp_sbpowerlaw_l2350() * REFORM(cur[*, i])
   RETURN, ret
 END

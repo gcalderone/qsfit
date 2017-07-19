@@ -65,7 +65,7 @@
 ;
 PRO qsfit_comp_sbpowerlaw_init, comp
   COMMON COM_QSFIT_COMP_SBPOWERLAW, $
-     xx, logx, log2, last_norm, last_x0, last_a1, last_da, last_curv, last_res, last_l3000
+     xx, logx, log2, last_norm, last_x0, last_a1, last_da, last_curv, last_res, last_l3000, last_l2350
   comp.curv.val = 1             ;lowest curvature
   comp.curv.limits = [1, 1000]
   xx = []
@@ -76,8 +76,20 @@ PRO qsfit_comp_sbpowerlaw_init, comp
   last_curv = gnan()
   last_res  = gnan()
   last_l3000= 1.
+  last_l2350= 1.
 END
 
+FUNCTION qsfit_comp_sbpowerlaw_l3000
+  COMMON COM_QSFIT_COMP_SBPOWERLAW
+  IF (~FINITE(last_l3000)) THEN STOP
+  RETURN, last_l3000
+END
+
+FUNCTION qsfit_comp_sbpowerlaw_l2350
+  COMMON COM_QSFIT_COMP_SBPOWERLAW
+  IF (~FINITE(last_l2350)) THEN STOP
+  RETURN, last_l2350
+END
 
 FUNCTION qsfit_comp_sbpowerlaw, x, norm, x0, alpha1, dalpha, curv
   COMPILE_OPT IDL2
@@ -115,8 +127,9 @@ FUNCTION qsfit_comp_sbpowerlaw, x, norm, x0, alpha1, dalpha, curv
         s/curv * (  ALOG(1.d + (xx/x0)^(da*curv)) - log2  ) $
            )
   ;;IF (CHECK_MATH(mask=208,/NOCLEAR) NE 0) THEN STOP  
-  last_res = FLOAT(INTERPOL(ret * norm, xx, x))
+  last_res   = FLOAT(INTERPOL(ret * norm, xx, x))
   last_l3000 = FLOAT(INTERPOL(ret * norm, xx, 3000.))
+  last_l2350 = FLOAT(INTERPOL(ret * norm, xx, 2350.))
   
   ;;last_res = FLOAT(INTERPOL(norm * EXP(alpha1 * (logx - ALOG(x0))), xx, x))
   ;;last_res = FLOAT(INTERPOL(norm * (xx/x0)^alpha1, xx, x))

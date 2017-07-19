@@ -136,8 +136,8 @@ FUNCTION qsfit_comp_galaxytemplate, x, norm, ID=templateID
      ;;Interpolate on current wavelength grid
      cur = INTERPOL(template_flux, template_wave, x) > 0
      
-     l0 = [3650, 4400, 5500]
-     ww = [680, 980, 890]
+     l0 = [3650, 4400, 5100, 5500]
+     ww = [680, 980, 100, 890]
      FOR i=0, gn(l0)-1 DO BEGIN
         qsfit_log, '  galaxy template flux density at ' + gn2s(l0[i]) + 'AA = ' + $
                    gn2s(INTERPOL(SMOOTH(template_flux, 3), template_wave, l0[i]))

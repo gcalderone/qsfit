@@ -30,11 +30,15 @@
 PRO ggp_clear
   COMPILE_OPT IDL2
   ON_ERROR, !glib.on_error
-  COMMON COM_GGP
+  COMMON COM_GGP, $
+     ggp_data,             $
+     ggp_cmd,  ggp_cmd_m,  $
+     ggp_plot, ggp_plot_m
 
-  ggp_pid  = LIST()
-  ggp_data = []   
-  ggp_cmd  = LIST()
-  ggp_plot = LIST()
-  ggp_flagInit = 1
+  ggp_data   = []
+  ggp_cmd    = LIST()
+  ggp_cmd_m  = LIST()
+  ggp_plot   = LIST()
+  ggp_plot_m = LIST()
 END
+

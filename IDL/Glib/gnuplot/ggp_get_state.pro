@@ -36,14 +36,27 @@ FUNCTION ggp_get_state
   COMMON COM_GGP
 
   ret = []
-  IF (gn(ggp_cmd ) GT 0) THEN ret = CREATE_STRUCT(ret, '_cmd' , ggp_cmd.toarray() ) $
-  ELSE                        ret = CREATE_STRUCT(ret, '_cmd' , '' )
+  IF (gn(ggp_cmd ) GT 0) THEN BEGIN
+     ret = CREATE_STRUCT(ret, '_cmd'   , ggp_cmd.toarray()  )
+     ret = CREATE_STRUCT(ret, '_cmd_m' , ggp_cmd_m.toarray()) 
+  ENDIF $
+  ELSE BEGIN
+     ret = CREATE_STRUCT(ret, '_cmd'   , '')
+     ret = CREATE_STRUCT(ret, '_cmd_m' , '')
+  ENDELSE
 
-  IF (gn(ggp_plot) GT 0) THEN ret = CREATE_STRUCT(ret, '_plot', ggp_plot.toarray()) $
-  ELSE                        ret = CREATE_STRUCT(ret, '_plot', '' )
+  IF (gn(ggp_plot) GT 0) THEN BEGIN
+     ret = CREATE_STRUCT(ret, '_plot'  , ggp_plot.toarray()  )
+     ret = CREATE_STRUCT(ret, '_plot_m', ggp_plot_m.toarray())
+  ENDIF $
+  ELSE BEGIN
+     ret = CREATE_STRUCT(ret, '_plot'  , '' )
+     ret = CREATE_STRUCT(ret, '_plot_m', '' )
+  ENDELSE
 
-  IF (gn(ggp_data) GT 0) THEN $
+  IF (gn(ggp_data) GT 0) THEN BEGIN
      ret = CREATE_STRUCT(ret, ggp_data)
+  ENDIF
 
   RETURN, ret
 END

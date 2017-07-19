@@ -51,7 +51,6 @@ PRO gcompile_qsfit, path
   FORWARD_FUNCTION ggaltempl_swire
   FORWARD_FUNCTION qsfit_version
   FORWARD_FUNCTION qsfit_line_coverage
-  FORWARD_FUNCTION qsfit_nunklines
   FORWARD_FUNCTION qsfit_estimate_fwhm_voff
   FORWARD_FUNCTION qsfit_reduce_line_templ
   FORWARD_FUNCTION qsfit_reduce_line
@@ -68,12 +67,14 @@ PRO gcompile_qsfit, path
   gcompile, /hold, path + 'components/qsfit_comp_ironoptical.pro'
   gcompile, /hold, path + 'components/qsfit_comp_ironuv.pro'
   gcompile, /hold, path + 'components/qsfit_comp_sbpowerlaw.pro'
+  gcompile, /hold, path + 'components/qsfit_comp_balmer.pro'
   gcompile, /hold, path + 'components/ggaltempl_mannucci01.pro'
   gcompile, /hold, path + 'components/ggaltempl_swire.pro'
   gcompile, /hold, path + 'qsfit.pro'
 
   ;;Compile the package
   gcompile
+  qsfit_prepare_options
 
   PRINT, 'QSFIT version: ' + qsfit_version()
 END

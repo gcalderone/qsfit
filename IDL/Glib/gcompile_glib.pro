@@ -98,6 +98,8 @@ PRO gcompile_glib, path
   FORWARD_FUNCTION gstru_sub
   FORWARD_FUNCTION gstru_tagnames
   FORWARD_FUNCTION gtype
+  FORWARD_FUNCTION greformstruct
+  FORWARD_FUNCTION gjoin
 
   ;;List of .pro files to be compiled
   gcompile, /hold, path + 'glib_init.pro'
@@ -138,8 +140,9 @@ PRO gcompile_glib, path
   gcompile, /hold, path + 'utils/gstru_sub.pro'
   gcompile, /hold, path + 'utils/gstru_tagnames.pro'
   gcompile, /hold, path + 'utils/gtype.pro'
+  gcompile, /hold, path + 'utils/greformstruct.pro'
+  gcompile, /hold, path + 'utils/gjoin.pro'
 
-  gcompile, /hold, path + 'gnuplot/ggp_init.pro'
   gcompile, /hold, path + 'gnuplot/ggp_clear.pro'
   gcompile, /hold, path + 'gnuplot/ggp_cmd.pro'
   gcompile, /hold, path + 'gnuplot/ggp_data.pro'

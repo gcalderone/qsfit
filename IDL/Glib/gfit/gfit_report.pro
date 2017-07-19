@@ -78,12 +78,16 @@ PRO gfit_report, ALL=all
   ENDIF
 
   tmp  = gstru_sub(par, drop=['limited', 'step', 'fixed'])
-  tmp2 = REPLICATE(CREATE_STRUCT(tmp[0], 'fixed', ''), gn(tmp))
+  tmp2 = REPLICATE(CREATE_STRUCT(tmp[0], 'fixed', '', 'step', ''), gn(tmp))
   STRUCT_ASSIGN, par, tmp2
 
   tmp2.fixed = ''
   IF (gsearch(par.fixed, i)) THEN $
      tmp2[i].fixed = 'fixed'
+
+  tmp2.step = ''
+  IF (gsearch(par.step NE 0, i)) THEN $
+     tmp2[i].step = gn2s(par[i].step, nan=' ')
   gps, tmp2, row=KEYWORD_SET(all)
 
   ndata = 0l

@@ -46,6 +46,6 @@ PRO glib_init, path
   ENDIF
 
   ;;Initialize sub-packages
-  ggp_init
+  ggp_clear
   gfit_init
 END

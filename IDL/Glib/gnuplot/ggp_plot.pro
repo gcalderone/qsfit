@@ -49,10 +49,12 @@
 ;  ggp_plot, opt
 ;  ggp
 ;
-PRO ggp_plot, options
+PRO ggp_plot, options, MULTI=multi
   COMPILE_OPT IDL2
   ON_ERROR, !glib.on_error
   COMMON COM_GGP
+
+  IF (~KEYWORD_SET(multi)) THEN multi = 0
 
   IF (gtype(options[0]) EQ 'STRING') THEN BEGIN
      plot = options
@@ -90,4 +92,5 @@ PRO ggp_plot, options
   ENDELSE
 
   ggp_plot.add, plot, /extract
+  ggp_plot_m.add, REPLICATE(multi[0], gn(plot)), /extract
 END

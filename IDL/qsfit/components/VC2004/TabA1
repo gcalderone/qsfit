@@ -1,0 +1,137 @@
+#*Table A.1:* List of all lines used in the fits of the broad system L1
+#of the AAT or WHT spectra. Column 1: line, Col. 2: transition, Col. 3:
+#upper level energy, Col. 4: wavelength, Cols. 5 and 6: observed
+#intensities relative to H$\beta $, corrected for a reddening of
+#/E/(/B/-/V/)=0.2. An "h" in Col. 5 or 6 means that the line is outside
+#the observed spectral range while an "n" means that it has not been
+#detected. Line 	Transition 	ul (eV) 	$\lambda$ (Å) 	AAT 	WHT
+H$\beta $ 	  	12.75 	4861.30 	1.00 	1.00
+H$\alpha$ 	  	12.09 	6562.79 	2.51 	3.70
+H$\gamma$ 	  	13.05 	4340.40 	0.42 	0.42
+H$\delta$ 	  	13.22 	4101.73 	h 	0.22
+H$\epsilon$ 	  	13.32 	3970.07 	h 	0.13
+H 8 	  	13.39 	3889.05 	h 	0.08
+H 9 	  	13.43 	3835.38 	h 	0.06
+H 10 	  	13.46 	3797.90 	h 	0.04
+H 11 	  	13.49 	3770.63 	h 	0.03
+H 12 	  	13.50 	3750.15 	h 	0.02
+Fe II 113 	c2G-z4Io 	7.63 	3564.53 	h 	0.11
+Fe II 	d2G-u2Fo 	10.72 	3589.48 	h 	0.11
+Fe II]112 	c2G-z4Ho 	7.58 	3614.87 	h 	0.12
+Fe II 193 	d2D1-w2Fo 	9.37 	3627.17 	h 	0.11
+Fe II 	w4Do-f4F 	12.39 	3649.39 	h 	0.08
+He I 25 	3Po-3D 	24.31 	3705.00 	h 	0.05
+Fe II] 	d4P-v2Do 	10.46 	3732.88 	h 	0.08
+Ti II 72 	b2D-y2Do 	4.89 	3741.63 	h 	0.07
+Fe II 29 	b4P-z4Po 	5.88 	3764.09 	h 	0.19
+He I 18 	3Po-3D 	24.04 	4026.36 	h 	0.08
+Fe II 	z4Go-e4G 	10.60 	4093.66 	h 	0.06
+Fe II 28 	b4P-z4Fo 	5.55 	4178.86 	0.05 	0.07
+Fe II 28 	b4P-z4Fo 	5.62 	4258.16 	0.05 	0.04
+Fe II 32 	a4H-z4Fo 	5.59 	4278.10 	0.06 	0.09
+Fe II 28 	b4P-z4Fo 	5.59 	4296.57 	0.06 	0.07
+Fe II 27 	b4P-z4Do 	5.58 	4303.17 	0.10 	0.12
+Fe II 32 	a4H-z4Fo 	5.55 	4314.29 	0.05 	0.05
+Fe II 28 	b4P-z4Fo 	5.62 	4369.40 	0.07 	0.12
+Fe II 27 	b4P-z4Do 	5.60 	4385.38 	0.07 	0.05
+Fe II 	y4Fo-e4G 	10.52 	4403.03 	0.07 	0.09
+Fe II 27 	b4P-z4Do 	5.58 	4416.82 	0.08 	0.09
+Fe II 37 	b4F-z4Fo 	5.62 	4472.92 	0.15 	0.21
+Fe II 37 	b4F-z4Fo 	5.59 	4489.18 	0.04 	0.04
+Fe II 37 	b4F-z4Fo 	5.62 	4491.40 	0.04 	0.04
+Fe II 38 	b4F-z4Do 	5.60 	4508.28 	0.10 	0.14
+Fe II 37 	b4F-z4Fo 	5.59 	4515.34 	0.09 	0.10
+Fe II 37 	b4F-z4Fo 	5.55 	4520.22 	0.07 	0.10
+Fe II 38 	b4F-z4Do 	5.58 	4522.63 	0.07 	0.10
+Fe II 37 	b4F-z4Fo 	5.59 	4534.17 	0.02 	0.07
+Fe II 38 	b4F-z4Do 	5.55 	4549.47 	0.08 	0.07
+Fe II 37 	b4F-z4Fo 	5.55 	4555.89 	0.11 	0.14
+Ti II 50 	a2P-z2Do 	3.94 	4563.76 	0.08 	0.14
+Fe II 38 	b4F-z4Do 	5.55 	4576.33 	0.06 	0.07
+Fe II 37 	b4F-z4Fo 	5.55 	4582.83 	0.07 	0.08
+Fe II 38 	b4F-z4Do 	5.51 	4583.83 	0.07 	0.08
+Ti II 50 	a2P-z2Do 	3.94 	4589.98 	0.07 	0.13
+Fe II 38 	b4F-z4Do 	5.55 	4595.68 	0.06 	0.07
+Fe II] 43 	a6S-z4Do 	5.58 	4601.41 	0.01 	0.04
+Fe II 38 	b4F-z4Do 	5.51 	4620.51 	0.10 	0.10
+Fe II 37 	b4F-z4Fo 	5.48 	4629.34 	0.12 	0.17
+Fe II] 43 	a6S-z4Do 	5.55 	4656.97 	0.09 	0.13
+Fe II 37 	b4F-z4Fo 	5.48 	4666.75 	0.12 	0.12
+Fe II] 26 	b4P-z6Po 	5.41 	4713.18 	0.03 	0.03
+Fe II] 54 	b2P-z4D0 	5.82 	4720.15 	n 	0.01
+Fe II] 43 	a6S-z4Do 	5.51 	4731.44 	0.07 	0.05
+Fe II] 54 	b2P-z4Po 	5.88 	4886.93 	0.08 	0.04
+Fe II 42 	a6S-z6Po 	5.41 	4923.92 	0.14 	0.18
+Fe II 42 	a6S-z6Po 	5.36 	5018.45 	0.14 	0.18
+Fe II 	e6F-4[5] 	12.75 	5030.64 	0.08 	0.11
+Si II 5 	2Po-2D 	12.53 	5041.06 	0.03 	0.05
+Si II 5 	2Po-2D 	12.53 	5056.35 	0.03 	0.03
+Fe II] 35 	b4F-z6Fo 	5.22 	5132.67 	0.12 	0.13
+Fe II] 35 	b4F-z6Fo 	5.25 	5154.40 	0.08 	0.11
+Fe II 42 	a6S-z6Po 	5.29 	5169.03 	0.14 	0.18
+Ti II 70 	b2D-z2Do 	3.97 	5188.68 	0.06 	0.06
+Fe II 49 	a4G-z4Fo 	5.62 	5197.57 	0.11 	0.15
+Fe II 49 	a4G-z4Fo 	5.59 	5234.62 	0.13 	0.15
+Fe II 41 	a6S-z6Fo 	5.26 	5238.58 	0.03 	0.05
+Fe II 49 	a4G-z4Fo 	5.59 	5254.92 	0.02 	0.01
+Fe II 41 	a6S-z6Fo 	5.25 	5256.89 	0.02 	0.01
+Fe II 48 	a4G-z4Do 	5.58 	5264.80 	0.12 	0.17
+Fe II 49 	a4G-z4Fo 	5.55 	5275.99 	0.05 	0.08
+Fe II 41 	a6S-z6Fo 	5.24 	5284.09 	0.10 	0.12
+Fe II 49 	a4G-z4Fo 	5.48 	5316.61 	0.16 	0.19
+Fe II 48 	a4G-z4Do 	5.55 	5316.78 	0.05 	0.06
+Fe II 48 	a4G-z4Do 	5.55 	5337.71 	0.09 	0.12
+Fe II 48 	a4G-z4Do 	5.51 	5362.86 	0.08 	0.08
+Fe II 48 	a4G-z4Do 	5.51 	5414.09 	0.06 	0.07
+Fe II 49 	a4G-z4Fo 	5.48 	5425.27 	0.04 	0.04
+Fe II] 55 	b2H-z4Fo 	5.55 	5432.98 	0.06 	0.09
+Fe II 	y4Do-e4D 	9.90 	5505.25 	0.07 	0.07
+Fe II] 55 	b2H-z4Fo 	5.48 	5534.83 	0.12 	0.15
+Si II 8 	4Po-4P 	16.62 	5827.80 	0.02 	0.02
+Si II 8 	4Po-4P 	16.62 	5846.12 	0.01 	0.02
+Si II 8 	4Po-4P 	16.64 	5868.40 	0.04 	0.05
+He I 11 	3Po-3D 	23.07 	5875.70 	0.08 	0.11
+Na I D 	2S-2Po 	2.10 	5889.89 	0.04 	0.04
+Na I D 	2S-2Po 	2.10 	5895.89 	0.07 	0.11
+Fe II 217 	x4Do-e4D 	9.96 	5955.51 	0.01 	0.02
+Fe II] 46 	a4G-z6Fo 	5.22 	5991.39 	0.03 	0.05
+Fe II] 46 	a4G-z6Fo 	5.20 	6044.53 	0.02 	0.03
+Fe II] 46 	a4G-z6Fo 	5.25 	6113.32 	0.01 	0.02
+Fe II] 46 	a4G-z6Fo 	5.26 	6116.04 	0.01 	0.02
+Fe II] 46 	a4G-z6Fo 	5.22 	6129.71 	0.01 	0.01
+Fe II 74 	b4D-z4Po 	5.90 	6147.74 	0.03 	0.03
+Fe II 74 	b4D-z4Po 	5.90 	6149.25 	0.03 	0.03
+Fe II 	p4So-4d4F 	13.25 	6157.12 	0.02 	0.04
+Fe II] 46 	a4G-z6Fo 	5.25 	6178.14 	0.01 	0.02
+Fe II] 46 	a4G-z6Fo 	5.20 	6185.34 	0.02 	0.02
+Fe II 74 	b4D-z4Po 	5.88 	6238.37 	0.04 	0.05
+Fe II 74 	b4D-z4Po 	5.88 	6247.55 	0.10 	0.13
+Fe II 	a2F-z6Po 	5.36 	6278.22 	0.01 	0.02
+Fe II] 34 	b4F-z6Do 	4.79 	6307.53 	0.05 	0.07
+Fe II 	z4Do-c4D 	7.47 	6317.99 	0.04 	0.05
+Fe II 	p4Fo-4d4F 	13.25 	6336.95 	0.03 	0.04
+Si II 2 	2S-2Po 	10.07 	6347.10 	0.03 	0.04
+Fe II 40 	a6S-z6Do 	4.84 	6369.45 	0.03 	0.04
+Si II 2 	2S-2Po 	10.07 	6371.40 	0.02 	0.03
+Fe II 	z4Do-c4D 	7.49 	6385.45 	0.05 	0.05
+Fe II 	z6Do-b4G 	6.73 	6402.90 	0.01 	0.02
+Fe II 74 	b4D-z4Po 	5.82 	6407.30 	0.01 	0.02
+Fe II 74 	b4D-z4Po 	5.82 	6416.89 	0.03 	0.05
+Fe II 40 	a6S-z6Do 	4.82 	6432.68 	0.06 	0.06
+Fe II 	z4Fo-c4D 	7.47 	6442.95 	0.02 	0.02
+Fe II 74 	b4D-z4Po 	5.82 	6456.39 	0.11 	0.14
+Fe II 	z4Do-c4D 	7.49 	6491.28 	0.04 	0.07
+Fe II] 	x4Do-e6D 	9.78 	6500.63 	0.03 	0.06
+Fe II 40 	a6S-z6Do 	4.79 	6516.07 	0.01 	0.08
+Fe II 	z4Fo-c4D 	7.49 	6598.30 	0.14 	0.21
+Fe II 	z4Fo-c4D 	7.49 	6623.07 	0.03 	0.06
+Fe II] 	e6G-2Go 	12.37 	6644.25 	0.02 	0.03
+He I 46 	1Po-1D 	23.07 	6678.11 	0.04 	0.07
+Fe II 	v4Fo-4d4F 	13.23 	6993.43 	0.02 	0.01
+Fe II 	u2Go-4d4F 	13.25 	7008.69 	0.02 	0.03
+Fe II 	u2Do-4d4F 	13.25 	7054.53 	0.04 	0.05
+He I 10 	3Po-3S 	22.72 	7065.42 	0.02 	0.05
+Fe II 	u2Go-4d4F 	13.23 	7080.47 	n 	0.02
+Fe II 73 	b4D-z4Do 	5.60 	7224.51 	0.04 	h
+Fe II 73 	b4D-z4Do 	5.58 	7307.97 	0.05 	h
+Fe II 73 	b4D-z4Do 	5.58 	7320.70 	0.06 	h

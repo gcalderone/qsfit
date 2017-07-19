@@ -53,7 +53,7 @@
 ;    All these keywords are passed to ggp_cmd (see ggp_cmd
 ;    documentation)
 ;
-;  TERM=term, OUTPUT=output
+;  TERM=term, OUTPUT=output, NORUN=norun
 ;    These keywords are passed to ggp (see ggp documentation)
 ;
 ;  /HIST= (keyword)
@@ -77,7 +77,7 @@ PRO gplot $
    , XLOG=xlog, YLOG=ylog                       $
    , XTITLE=xtitle, YTITLE=ytitle, TITLE=title  $
    , COMMANDS=commands                          $
-   , TERM=term, OUTPUT=output                   $
+   , TERM=term, OUTPUT=output, NORUN=norun      $
    , HIST=hist, _EXTRA=extra
   COMPILE_OPT IDL2
   ON_ERROR, !glib.on_error
@@ -117,5 +117,5 @@ PRO gplot $
      END
   ENDCASE
   
-  ggp, term=term, output=output
+  ggp, term=term, output=output, norun=norun
 END

@@ -30,7 +30,7 @@
 ;    The index of the data set to plot.  If not given the first
 ;    dataset (i.e. IDATA=0) is assumed.
 ;
-PRO gfit_plot_resid, idata, gp=gp_file, pdf=pdf_file
+PRO gfit_plot_resid, idata
   COMPILE_OPT IDL2
   ON_ERROR, !glib.on_error
   COMMON GFIT

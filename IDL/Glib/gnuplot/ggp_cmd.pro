@@ -61,25 +61,37 @@ PRO ggp_cmd        $
    , CLEAR=clear, TITLE=title $
    , XRANGE=xrange, YRANGE=yrange, ZRANGE=zrange $
    , XTITLE=xtitle, YTITLE=ytitle, ZTITLE=ztitle $
-   , XLOG=xlog, YLOG=ylog, ZLOG=zlog
+   , XLOG=xlog, YLOG=ylog, ZLOG=zlog             $
+   , MULTI=multi
   COMPILE_OPT IDL2
   ON_ERROR, !glib.on_error
   COMMON COM_GGP
 
   IF (KEYWORD_SET(clear)) THEN ggp_clear
+  IF (~KEYWORD_SET(multi)) THEN multi = 0
 
-  IF (gn(commands) GT 0) THEN ggp_cmd.add, commands, /extract
+  IF (gn(commands) GT 0) THEN BEGIN
+     ggp_cmd.add, commands, /extract
+     ggp_cmd_m.add, REPLICATE(multi[0], gn(commands)), /extract
+  ENDIF
 
-  IF (gn(xrange) EQ 2)   THEN ggp_cmd.add, 'set xrange [ ' + STRJOIN(gn2s(xrange, nan='*'), ' : ') + ' ]'
-  IF (gn(yrange) EQ 2)   THEN ggp_cmd.add, 'set yrange [ ' + STRJOIN(gn2s(yrange, nan='*'), ' : ') + ' ]'
-  IF (gn(zrange) EQ 2)   THEN ggp_cmd.add, 'set zrange [ ' + STRJOIN(gn2s(zrange, nan='*'), ' : ') + ' ]'
+  add = LIST()
+  IF (gn(xrange) EQ 2)   THEN add.add, 'set xrange [ ' + STRJOIN(gn2s(xrange, nan='*'), ' : ') + ' ]'
+  IF (gn(yrange) EQ 2)   THEN add.add, 'set yrange [ ' + STRJOIN(gn2s(yrange, nan='*'), ' : ') + ' ]'
+  IF (gn(zrange) EQ 2)   THEN add.add, 'set zrange [ ' + STRJOIN(gn2s(zrange, nan='*'), ' : ') + ' ]'
 
-  IF (gn( title) EQ 1)   THEN ggp_cmd.add, 'set title  ''' + STRING( title) + ''''
-  IF (gn(xtitle) EQ 1)   THEN ggp_cmd.add, 'set xlabel ''' + STRING(xtitle) + ''''
-  IF (gn(ytitle) EQ 1)   THEN ggp_cmd.add, 'set ylabel ''' + STRING(ytitle) + ''''
-  IF (gn(ztitle) EQ 1)   THEN ggp_cmd.add, 'set zlabel ''' + STRING(ztitle) + ''''
+  IF (gn( title) EQ 1)   THEN add.add, 'set title  ''' + STRING( title) + ''''
+  IF (gn(xtitle) EQ 1)   THEN add.add, 'set xlabel ''' + STRING(xtitle) + ''''
+  IF (gn(ytitle) EQ 1)   THEN add.add, 'set ylabel ''' + STRING(ytitle) + ''''
+  IF (gn(ztitle) EQ 1)   THEN add.add, 'set zlabel ''' + STRING(ztitle) + ''''
 
-  IF (gn(xlog) EQ 1)     THEN ggp_cmd.add, (KEYWORD_SET(xlog)  ?  ''  :  'un') + 'set logscale x'
-  IF (gn(ylog) EQ 1)     THEN ggp_cmd.add, (KEYWORD_SET(ylog)  ?  ''  :  'un') + 'set logscale y'
-  IF (gn(zlog) EQ 1)     THEN ggp_cmd.add, (KEYWORD_SET(zlog)  ?  ''  :  'un') + 'set logscale z'
+  IF (gn(xlog) EQ 1)     THEN add.add, (KEYWORD_SET(xlog)  ?  ''  :  'un') + 'set logscale x'
+  IF (gn(ylog) EQ 1)     THEN add.add, (KEYWORD_SET(ylog)  ?  ''  :  'un') + 'set logscale y'
+  IF (gn(zlog) EQ 1)     THEN add.add, (KEYWORD_SET(zlog)  ?  ''  :  'un') + 'set logscale z'
+
+  IF (gn(add) GT 0) THEN BEGIN
+     add = add.toArray()
+     ggp_cmd.add, add, /extract
+     ggp_cmd_m.add, REPLICATE(multi[0], gn(add)), /extract
+  ENDIF
 END

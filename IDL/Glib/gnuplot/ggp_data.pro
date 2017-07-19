@@ -81,12 +81,13 @@
 PRO ggp_data $
    , p0  , p1,  p2,  p3,  p4,  p5,  p6,  p7,  p8,  p9  $
    , p10, p11, p12, p13, p14, p15, p16, p17, p18, p19  $
-   , CLEAR=clear, PLOT=plot, BASENAME=basename, NAME=iname, GETNAME=name
+   , CLEAR=clear, PLOT=plot, BASENAME=basename, NAME=iname, GETNAME=name, MULTI=multi
   COMPILE_OPT IDL2
   ON_ERROR, !glib.on_error
   COMMON COM_GGP
 
   IF (KEYWORD_SET(clear)) THEN ggp_clear
+  IF (~KEYWORD_SET(multi)) THEN multi = 0
 
   dataset = []
   FOR ipar=0, N_PARAMS()-1 DO BEGIN
@@ -109,5 +110,5 @@ PRO ggp_data $
 
   IF (KEYWORD_SET(plot)) THEN $
      FOR i=0, gn(plot)-1 DO $
-        ggp_plot, name + STRING(plot[i])
+        ggp_plot, name + STRING(plot[i]), MULTI=multi
 END
