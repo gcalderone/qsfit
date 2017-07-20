@@ -2542,6 +2542,7 @@ END
 PRO qsfit_plot, red, FILENAME=filename, s11=s11, RESID=resid, TERM=term
   COMPILE_OPT IDL2
   ON_ERROR, !glib.on_error
+  COMMON GFIT
 
   gfit_restore, red.gfit
 
@@ -2590,6 +2591,16 @@ PRO qsfit_plot, red, FILENAME=filename, s11=s11, RESID=resid, TERM=term
 
      ggp_data, xx, yy, pl='w lines t "S11 slopes" lw 3 lc rgb "dark-green"'
   ENDIF
+
+  lines = qsfit_lineset()
+  FOR i=0, gn(lines)-1 DO BEGIN
+     IF (lines[i].type EQ 'A') THEN BEGIN
+        lineName = 'ABS_' + STRUPCASE(lines[i].name)
+        icomp = WHERE(TAG_NAMES(gfit.comp) EQ lineName)
+        ggp_data, gfit.comp.(icomp).center.val*[1,1], gminmax(red.gfit.cmp.(0).y), $
+                  pl='w l notit dt 2 lc rgb "gray"'
+     ENDIF
+  ENDFOR
 
   ;;Save or show plots
   IF (gn(filename) EQ 1) THEN BEGIN
