@@ -1,3 +1,8 @@
+- Jul 20, 2017  (ver. 1.2.1)
+	+ QSFit is now able to fit a set of (manually added) absorption
+	lines.  The list of absorption wavelengths must be specified
+	through the !QSFIT_OPT.abslines_wavelengths global variable.
+
 - Jul 19, 2017  (ver. 1.2)
 
 	+ QSFit now defines a global variable upon initialization, named
