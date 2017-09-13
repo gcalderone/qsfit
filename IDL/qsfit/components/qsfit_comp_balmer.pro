@@ -413,6 +413,6 @@ PRO qsfit_comp_balmer_test
   ggp_data, x, y1, pl='w l tit "ratio=1" lw 2 lc rgb "red"'
   ggp_data, x, y2, pl='w l tit "ratio=0.5" lw 2 lc rgb "blue"'
   ggp_data, 3645.07*[1,1], [0, 1.4], pl='w l tit "Balmer edge" dt 4 lc rgb "black"'
+  ;ggp, term='pdf fontscale 0.65 linewidth 1.3', out='qsfit_comp_balmer_test.pdf'
   ggp, term='pdf', out='qsfit_comp_balmer_test.pdf'
-
 END
