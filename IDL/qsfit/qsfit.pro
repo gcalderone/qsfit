@@ -1200,7 +1200,8 @@ PRO qsfit_add_unknown
   ENDFOR
 
   ;;Save initial values of unknown lines center
-  IF (gn(unkCenter) EQ 0) THEN unkCenter = xx[iadd]
+  IF !QSFIT_OPT.unkLines GT 0 THEN $
+     IF (gn(unkCenter) EQ 0) THEN unkCenter = xx[iadd]
 
   ;;Enable plotting of unknown lines
   gfit.plot.(0).expr_Unknown.plot = 1
@@ -2304,6 +2305,7 @@ PRO qsfit_show_step, filename
   gfit.plot.(0).main.rebin = 5
   
   gfit_plot
+  ggp_cmd, 'set key horizontal'
   IF (gn(filename) EQ 1) THEN ggp, term='pdf', out=filename + '.pdf' $
   ELSE ggp
   
@@ -2398,11 +2400,13 @@ PRO qsfit_run
      ENDFOR
 
      ;;Save the enabled/disabled switch for each unknown line
-     unkEnabled = REPLICATE(0b, !QSFIT_OPT.unkLines)
-     FOR iiunk=1, !QSFIT_OPT.unkLines DO BEGIN
-        iunk = WHERE(TAG_NAMES(gfit.comp) EQ 'UNK' + gn2s(iiunk))
-        unkEnabled[iiunk-1] = gfit.comp.(iunk).enabled
-     ENDFOR
+     IF (!QSFIT_OPT.unkLines GT 0) THEN BEGIN
+        unkEnabled = REPLICATE(0b, !QSFIT_OPT.unkLines)
+        FOR iiunk=1, !QSFIT_OPT.unkLines DO BEGIN
+           iunk = WHERE(TAG_NAMES(gfit.comp) EQ 'UNK' + gn2s(iiunk))
+           unkEnabled[iiunk-1] = gfit.comp.(iunk).enabled
+        ENDFOR
+     ENDIF
   ENDIF $
   ELSE BEGIN
      ;;Enable/disable the same unknown lines we used in the main analysis.
@@ -2605,7 +2609,7 @@ PRO qsfit_plot, red, FILENAME=filename, s11=s11, RESID=resid, TERM=term
   ;;Save or show plots
   IF (gn(filename) EQ 1) THEN BEGIN
      IF (KEYWORD_SET(term)) THEN $
-        ggp, output=filename+'.'+term, term=term $
+        ggp, output=filename+'.pdf', term=term $
      ELSE $
         ggp, output=filename, gp=filename+'.gp'
   ENDIF $
@@ -2617,9 +2621,9 @@ PRO qsfit_plot, red, FILENAME=filename, s11=s11, RESID=resid, TERM=term
      gfit_plot_resid
      IF (gn(filename) EQ 1) THEN BEGIN
         IF (KEYWORD_SET(term)) THEN $
-           ggp, output=filename+'_resid.'+term, term=term $
+           ggp, output=filename+'_resid.pdf', term=term $
         ELSE $
-           ggp, output=filename+'_resid', gp=filename+'_resid.gp'
+           ggp, output=filename+'_resid.pdf', gp=filename+'_resid.gp'
      ENDIF $
      ELSE ggp
   ENDIF
