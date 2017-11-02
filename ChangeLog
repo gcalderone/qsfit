@@ -1,3 +1,8 @@
+- Nov 02, 2017  (ver. 1.2.2)
+	+ QSFit is now able to read data from an ASCII text file (rather
+	than from a SDSS DR10 FITS file): simply pass the `input='ASCII``
+	keyword to `qsfit`;
+
 - Jul 20, 2017  (ver. 1.2.1)
 	+ QSFit is now able to fit a set of (manually added) absorption
 	lines.  The list of absorption wavelengths must be specified

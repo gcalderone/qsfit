@@ -35,9 +35,13 @@ PRO ggp_set_state, str
   COMMON COM_GGP
 
   ggp_clear
-  FOR i=0, gn(str._cmd )-1 DO IF (str._cmd [i] NE '') THEN ggp_cmd.add , str._cmd [i]
-  FOR i=0, gn(str._plot)-1 DO IF (str._plot[i] NE '') THEN ggp_plot.add, str._plot[i]
+  ;;FOR i=0, gn(str._cmd )-1 DO IF (str._cmd [i] NE '') THEN ggp_cmd.add , str._cmd [i]
+  ;;FOR i=0, gn(str._plot)-1 DO IF (str._plot[i] NE '') THEN ggp_plot.add, str._plot[i]
+  FOR i=0, gn(str._cmd   )-1 DO ggp_cmd.add   , str._cmd[i]
+  FOR i=0, gn(str._cmd_m )-1 DO ggp_cmd_m.add , str._cmd_m[i]
+  FOR i=0, gn(str._plot  )-1 DO ggp_plot.add  , str._plot[i]
+  FOR i=0, gn(str._plot_m)-1 DO ggp_plot_m.add, str._plot_m[i]
 
   IF (N_TAGS(str) GT 2) THEN $
-     ggp_data = gstru_sub(str, keep=(TAG_NAMES(str))[2:*])
+     ggp_data = gstru_sub(str, drop=['_CMD', '_CMD_M', '_PLOT', '_PLOT_M'])
 END

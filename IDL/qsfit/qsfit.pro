@@ -28,7 +28,7 @@
 ;  The QSFIT version.
 ;
 FUNCTION qsfit_version
-  RETURN, '1.2.1'
+  RETURN, '1.2.2'
 END
 
 ;=====================================================================
@@ -199,6 +199,110 @@ PRO qsfit_spec2restframe, x, y, e, z, ebv
 END
 
 
+
+;=====================================================================
+;NAME:
+;  qsfit_read_ascii
+;
+;PURPOSE:
+;  Read an ASCII files with three columns separated by spaces.  The
+;  columns should contain: the observed wavelength in Angstrom, the
+;  observed flux in units of 10^-17 erg s^-1 cm^-2 A^-1, and its
+;  1-sigma uncertainty.
+;
+;PARAMETERS:
+;  FILENAME (input, a scalar string)
+;    The path to an ASCII spectrum file.
+;
+;  ID= (optional input, a scalar string)
+;    A spectrum identifier to be inserted into GFIT dataset user
+;    data.
+;
+;  Z= (optional input, a scalar number)
+;   The source redshift.  If not given the redshift is read from the
+;   FITS file.
+;
+;  EBV= (optional input, a scalar number)
+;   The source colour excess.  If not given it is calculated using the
+;   Schlegel et al. (1998) maps.
+;
+PRO qsfit_read_ascii, filename, ID=id, Z=z, EBV=ebv
+  COMPILE_OPT IDL2
+  ON_ERROR, !glib.on_error
+  COMMON GFIT
+
+  IF (~gfexists(filename)) THEN $
+     MESSAGE, 'File: ' + filename + ' does not exists'
+
+  IF (~KEYWORD_SET(ebv)) THEN BEGIN
+     MESSAGE, 'Color excess must be given through the EBV= keyword'
+  ENDIF
+  IF (~KEYWORD_SET(z)) THEN BEGIN
+     MESSAGE, 'Redshift must be given through the Z= keyword'
+  ENDIF
+  IF (z GT 2.12) THEN $
+     MESSAGE, 'Analysis of sources with Z>2.12 is not yet supported'
+
+  template = {x: 0.d, y: 0.d, e: 0.d}
+  data = greadtexttable(filename, ' ', /dropnull, template=template)
+  
+  tmp = data.x - SHIFT(data.x,1)
+  tmp = tmp[1:*] / data[1:*].x
+  qsfit_log, 'Spectral resolution (min, max): ' + STRJOIN(gn2s(gminmax(tmp*3.e5)), ", ") + ' km s^-1'
+
+  ;;Prepare user data with additional info from the FITS file.
+  IF (gn(id) EQ 0) THEN id = ''
+  udata = {id:   STRING(id), $
+           file: filename  , $
+           ebv:  ebv       , $
+           z:    z         , $
+           ra:   gnan()    , $
+           dec:  gnan()    , $
+           fitshead: ['']  , $
+           median_flux: 0. , $
+           median_err:  0. , $
+           goodFraction: 1.  $
+          }
+
+  ;;Transform to rest frame.  Final units are:
+  ;;xx     : AA
+  ;;yy, ee : 10^42 erg s^-1 AA^-1
+  xx = data.x
+  yy = data.y
+  ee = data.e
+  qsfit_spec2restframe, xx, yy, ee, z, ebv
+  data.x = TEMPORARY(xx)
+  data.y = TEMPORARY(yy)
+  data.e = TEMPORARY(ee)
+
+  ;;Save median flux and error
+  udata.median_flux = MEDIAN(data.y)
+  udata.median_err  = MEDIAN(data.e)
+
+  ;;Initialize gfit
+  gfit_init
+
+  ;;Add data into gfit
+  gfit_add_data, data.x, data.y, data.e, UDATA=udata
+
+  gfit_prepare_cmp
+
+  ;;Ignore data below emission lines with insufficient coverage.
+  ;;Note: this steps must be performed before adding components since
+  ;;some of them rely on the assumption that the X values do not vary
+  ;;between one call and the other.
+  qsfit_ignore_data_on_missing_lines
+
+  ;;Setup appropriate titles for plot
+  tmp = (STRSPLIT(filename, '/', /extract))[-1]  ;;extract filename, drop directories
+  gfit.plot.(0).main.title = tmp + ', z=' + gn2s(z) + ', E(B-V)=' + gn2s(ebv)
+  gfit.plot.(0).main.rebin = 1
+  gfit.plot.(0).data.label = 'Data'
+
+  ;;angstrom = '!6!sA!r!u!9 %!6!n'
+  gfit.plot.(0).main.xtit  = 'Rest frame wavelength [A]'
+  gfit.plot.(0).main.ytit  = 'Lum. density [10^{42} erg s^{-1} A^{-1}]'
+END
 
 
 ;=====================================================================
@@ -2306,11 +2410,11 @@ PRO qsfit_show_step, filename
   
   gfit_plot
   ggp_cmd, 'set key horizontal'
-  IF (gn(filename) EQ 1) THEN ggp, term='pdf', out=filename + '.pdf' $
+  IF (gn(filename) EQ 1) THEN ggp, term='pdf fontscale 0.65 linewidth 1.3', out=filename + '.pdf' $
   ELSE ggp
   
   gfit_plot_resid
-  IF (gn(filename) EQ 1) THEN ggp, term='pdf', out=filename + '_resid.pdf' $
+  IF (gn(filename) EQ 1) THEN ggp, term='pdf fontscale 0.65 linewidth 1.3', out=filename + '_resid.pdf' $
   ELSE ggp
   
   gfit.plot.(0).main.rebin = rebin
@@ -2674,6 +2778,14 @@ END
 ;  FILE (input, a scalar string)
 ;    Path to SDSS (DR10) spSpec file to be analyzed.
 ;
+;  INPUT= (optional input, a scalar string)
+;   String specifying the format of input file.  Possible values are:
+;      SDSS_DR10: SDSS DR10 FITS file (default if the keyword is not
+;      given);
+;      ASCII: ASCII file with three columns (observed wavelength in A,
+;      observed flux in units of 10^-17 erg s^-1 cm^-2 A^-1, and its
+;      1-sigma uncertainty) separated by spaces;
+;
 ;  OUTDIR= (optional input, a scalar string)
 ;    Directory name where the output files will be saved.  If not
 ;    given no output file will be written.
@@ -2693,7 +2805,7 @@ END
 ;RETURN VALUE:
 ;  The structure returned by qsfit_reduce().
 ;
-FUNCTION qsfit, file, OUTDIR=outdir, PROCID=procid, TICTOC=tictoc, RESAMPLE=resample, _EXTRA=extra
+FUNCTION qsfit, file, INPUT=input, OUTDIR=outdir, PROCID=procid, TICTOC=tictoc, RESAMPLE=resample, _EXTRA=extra
   COMPILE_OPT IDL2
   COMMON GFIT
   COMMON COM_RESAMPLING, unkCenter, unkEnabled
@@ -2701,7 +2813,15 @@ FUNCTION qsfit, file, OUTDIR=outdir, PROCID=procid, TICTOC=tictoc, RESAMPLE=resa
 
   IF (gn(resample) EQ 0) THEN resample = 1
   IF (gn(procid) EQ 0) THEN procid = 0
+  IF (gn(input) EQ 0) THEN input = 'SDSS_DR10'
 
+  CASE (input) OF
+     'SDSS_DR10':
+     'ASCII':
+     ELSE: MESSAGE, 'Unsupported input file format: ' + STRING(input[0])
+  ENDCASE
+
+  
   ;;Ensure unknown line center are evaluated according to current data
   unkCenter  = []
   unkEnabled = []
@@ -2790,12 +2910,12 @@ FUNCTION qsfit, file, OUTDIR=outdir, PROCID=procid, TICTOC=tictoc, RESAMPLE=resa
 
      ;;Log input parameters
      gprint, '********************************************************************************'
-     qsfit_log, 'QSFIT_SDSS10, ver. ' + qsfit_version()
+     qsfit_log, 'QSFIT, ver. ' + qsfit_version()
      qsfit_log, '  started at ' + SYSTIME()
      IF (resample GT 1) THEN $
         qsfit_log, "Resampling sequence: " + gn2s(iresample) + " / " + gn2s(resample)
      qsfit_log
-     qsfit_log, 'Input FILE   : ' + file
+     qsfit_log, 'Input FILE   : ' + file + '   (format: ' + input + ')'
      IF (KEYWORD_SET(outidr)) THEN BEGIN
         qsfit_log, 'Output file  : ' + file_dat
         qsfit_log, 'Log file     : ' + file_log
@@ -2811,8 +2931,12 @@ FUNCTION qsfit, file, OUTDIR=outdir, PROCID=procid, TICTOC=tictoc, RESAMPLE=resa
      qsfit_log
 
      ;;Load data into GFIT
-     IF (~readFromSaved) THEN $
-        qsfit_read_SDSS_DR10, file, _EXTRA=extra
+     IF (~readFromSaved) THEN BEGIN
+        CASE (input) OF
+           'SDSS_DR10': qsfit_read_SDSS_DR10, file, _EXTRA=extra
+           'ASCII':     qsfit_read_ascii    , file, _EXTRA=extra
+        ENDCASE
+     ENDIF
 
      ;;Set Process ID
      gfit.opt.pid = 0
