@@ -234,7 +234,7 @@ PRO qsfit_read_ascii, filename, ID=id, Z=z, EBV=ebv
   IF (~gfexists(filename)) THEN $
      MESSAGE, 'File: ' + filename + ' does not exists'
 
-  IF (~KEYWORD_SET(ebv)) THEN BEGIN
+  IF (gn(ebv) EQ 0) THEN BEGIN
      MESSAGE, 'Color excess must be given through the EBV= keyword'
   ENDIF
   IF (~KEYWORD_SET(z)) THEN BEGIN
@@ -267,6 +267,8 @@ PRO qsfit_read_ascii, filename, ID=id, Z=z, EBV=ebv
   ;;Transform to rest frame.  Final units are:
   ;;xx     : AA
   ;;yy, ee : 10^42 erg s^-1 AA^-1
+  i = SORT(data.x)
+  data = data[i]
   xx = data.x
   yy = data.y
   ee = data.e
