@@ -409,7 +409,11 @@ PRO qsfit_read_SDSS_DR10, filename, ID=id, Z=z, EBV=ebv
   ;;Prepare user data with additional info from the FITS file.
   IF (gn(id) EQ 0) THEN id = ''
 
+  ;;Get X, Y and error quantities
   xx = 10.d^fits.loglam
+  yy = DOUBLE(fits.flux)
+  ee = SQRT(1.d / fits.ivar)
+
   udata = {id:   STRING(id), $
            file: (STRSPLIT(filename, PATH_SEP(), /extract))[-1], $
            ebv:  ebv       , $
@@ -419,17 +423,15 @@ PRO qsfit_read_SDSS_DR10, filename, ID=id, Z=z, EBV=ebv
            fitshead: head  , $
            median_flux: 0. , $
            median_err:  0. , $
-           goodFraction: goodFraction $
+           goodFraction: goodFraction, $
+           obs_x: xx, $
+           obs_y: yy, $
+           obs_e: ee  $
           }
 
   tmp = xx - SHIFT(xx,1)
   tmp = tmp[1:*] / xx[1:*]
   qsfit_log, 'Spectral resolution (min, max): ' + STRJOIN(gn2s(gminmax(tmp*3.e5)), ", ") + ' km s^-1'
-
-  ;;Get X, Y and error quantities
-  xx = 10.d^fits.loglam
-  yy = DOUBLE(fits.flux)
-  ee = SQRT(1.d / fits.ivar)
 
   ;;Transform to rest frame.  Final units are:
   ;;xx     : AA
@@ -479,13 +481,13 @@ END
 ;  Returns the line coverage fraction of an emission line.
 ;
 ;DESCRIPTION:
-;  The line coverage fraction is the ratio of "good" channels over all
-;  available channels for an emission line with given width.  The
-;  minimum line coverage is 0, the maximum is 1.  A good line
-;  coverage, say above 0.5, ensure that the line quantities are well
-;  constrained (provided the line is sufficiently bright).  If the
-;  whole line width lies outside the available wavelength range the
-;  return value is 0.
+;  The line coverage fraction is the ratio of the number of "good"
+;  channels over thos of an optimal grid, whose resolution is
+;  specified through the RESOLUTION keyword.  width.  The minimum line
+;  coverage is 0, the maximum is 1.  A good line coverage, say above
+;  0.5, ensure that the line quantities are well constrained (provided
+;  the line is sufficiently bright).  If the whole line width lies
+;  outside the available wavelength range the return value is 0.
 ;
 ;PARAMETERS:
 ;  WAVE (input, a scalar number)
@@ -495,34 +497,33 @@ END
 ;    The range (centered on WAVE) where the line coverage is to be
 ;    evaluated (in km s^-1).
 ;
-;  GOOD= (output, an array of integers).
-;    The indices of "good" spectral channels in the selected range.
+;  RESOLUTION= (optional input, a scalar number).
+;    The resolution of the grid to compute the coverage (in km s^-1).
 ;
-;  TOTAL= (output, an array of integers).
-;    The indices of all spectral channels in the selected range.
+;  INDEX= (output, an array of integers).
+;    The indices of spectral channels in the selected range.
 ;
 ;RETURN VALUE: (a scalar floating point)
 ;  The emission line coverage
 ;
-FUNCTION qsfit_line_coverage, wave, width, TOTAL=total, GOOD=good
+FUNCTION qsfit_line_coverage, wave, width, INDEX=index, RESOLUTION=resolution
   COMPILE_OPT IDL2
   ON_ERROR, !glib.on_error
   COMMON GFIT
 
+  ;; Calculate optimal grid
+  IF (gn(resolution) EQ 0) THEN resolution = 70. ;km / s
+  step = resolution / 3.e5 * wave
   width_aa = width / 3.e5 * wave
 
-  ;;Evaluate GOOD and TOTAL indices
-  good  = WHERE(ABS(gfit.data.(0).x - wave) LT width_aa/2.   AND   (gfit.data.(0).group GE 0))
-  total = WHERE(ABS(gfit.data.(0).x - wave) LT width_aa/2.)
+  ;;Match index points against optimal grid
+  index = WHERE(ABS(gfit.data.(0).x - wave) LT width_aa/2.   AND   (gfit.data.(0).group GE 0))
+  IF (index[0] EQ -1) THEN RETURN, 0.
 
-  IF (total[0] EQ -1) THEN RETURN, 0
-  IF (good [0] EQ -1) THEN RETURN, 0
-
-  ;;Ensure the whole line is visible within the spectrum
-  IF (gfit.data.(0).x[0]  GT wave - width_aa/2.) THEN RETURN, 0.
-  IF (gfit.data.(0).x[-1] LT wave + width_aa/2.) THEN RETURN, 0.
-
-  coverage = FLOAT(gn(good)) / FLOAT(gn(total))
+  good = gfit.data.(0).x[index]
+  good = HISTOGRAM(good, binsize=step)
+  good[WHERE(good GE 1)] = 1
+  coverage = TOTAL(good) / (width_aa / step)
   RETURN, coverage
 END
 
@@ -898,7 +899,7 @@ PRO qsfit_ignore_data_on_missing_lines
 
   FOR i=0, gn(lines)-1 DO BEGIN
      ;;Estimate line coverage
-     coverage = qsfit_line_coverage(lines[i].wave, (lines[i].type EQ 'N' ? 1e3 : 1.2e4), total=toBeIgnored)
+     coverage = qsfit_line_coverage(lines[i].wave, (lines[i].type EQ 'N' ? 1e3 : 1.2e4), index=toBeIgnored)
      qsfit_log, 'The line ' + lines[i].name + ' has a coverage of ' + STRING(coverage)
 
      ;;Ensure that the whole line has at least 60% of "good" channels
