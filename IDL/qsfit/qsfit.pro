@@ -389,7 +389,8 @@ PRO qsfit_read_SDSS_DR10, filename, ID=id, Z=z, EBV=ebv
   yy = DOUBLE(fits.flux)
 
   tmp = fits.ivar               ;;Set ivar of "bad" channels to NaN (to avoid "divide by 0" error)
-  tmp[WHERE(tmp LE 0)] = gnan()
+  IF (gsearch(tmp LE 0, i)) THEN $
+     tmp[i] = gnan()
   ee = SQRT(1.d / tmp)
 
   ;;Prepare user data with additional info from the FITS file.
