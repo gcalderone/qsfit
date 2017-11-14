@@ -384,35 +384,16 @@ PRO qsfit_read_SDSS_DR10, filename, ID=id, Z=z, EBV=ebv
   ndrop = 100
   fits = fits[ndrop:gn(fits)-ndrop-1]
 
-  good = (fits.and_mask EQ 0)   AND   $
-         (fits.ivar GT 0)       AND   $
-         (fits.flux GT 0)
-
-  ;;Identify "good" channels
-  iGood = WHERE(good)
-  IF (iGood[0] EQ -1) THEN $
-     MESSAGE, 'No "good" spectrum channel'
-
-  goodFraction = FLOAT(gn(iGood)) / gn(fits)
-  IF (goodFraction LT 0.75) THEN $
-     MESSAGE, 'Only ' + gn2s(goodFraction*100.) + '% spectrum channels have "good" mask flag'
-  qsfit_log, 'Fraction of "good" channels: ' +  gn2s(goodFraction*100.) + '%'
-  qsfit_log
-
-  ;;Set ivar of "bad" channels to NaN (to avoid "divide by 0" error)
-  tmp = REPLICATE(gnan(), gn(fits.ivar))
-  tmp[iGood] = fits[iGood].ivar
-  fits.ivar = tmp
-
-
-  ;;Prepare user data with additional info from the FITS file.
-  IF (gn(id) EQ 0) THEN id = ''
-
   ;;Get X, Y and error quantities
   xx = 10.d^fits.loglam
   yy = DOUBLE(fits.flux)
-  ee = SQRT(1.d / fits.ivar)
 
+  tmp = fits.ivar               ;;Set ivar of "bad" channels to NaN (to avoid "divide by 0" error)
+  tmp[WHERE(tmp LE 0)] = gnan()
+  ee = SQRT(1.d / tmp)
+
+  ;;Prepare user data with additional info from the FITS file.
+  IF (gn(id) EQ 0) THEN id = ''
   udata = {id:   STRING(id), $
            file: (STRSPLIT(filename, PATH_SEP(), /extract))[-1], $
            ebv:  ebv       , $
@@ -422,7 +403,7 @@ PRO qsfit_read_SDSS_DR10, filename, ID=id, Z=z, EBV=ebv
            fitshead: head  , $
            median_flux: 0. , $
            median_err:  0. , $
-           goodFraction: goodFraction, $
+           goodFraction: 0., $
            obs_x: xx, $
            obs_y: yy, $
            obs_e: ee  $
@@ -437,13 +418,25 @@ PRO qsfit_read_SDSS_DR10, filename, ID=id, Z=z, EBV=ebv
   ;;yy, ee : 10^42 erg s^-1 AA^-1
   qsfit_spec2restframe, xx, yy, ee, z, ebv
 
-  IF (gsearch(xx GT 1217, i)) THEN BEGIN
-     xx = xx[i]
-     yy = yy[i]
-     ee = ee[i]
-  ENDIF $
-  ELSE  $
-     MESSAGE, 'There is no data at wavelength > 1217AA'
+  good = (fits.and_mask EQ 0)   AND   $
+         (fits.ivar GT 0)       AND   $
+         (fits.flux GT 0)
+
+  IF (gsearch(xx LE 1217, i)) THEN BEGIN
+     good[i] = 0
+  ENDIF
+
+  ;;Identify "good" channels
+  iGood = WHERE(good)
+  IF (iGood[0] EQ -1) THEN $
+     MESSAGE, 'No "good" spectrum channel'
+
+  udata.goodFraction = FLOAT(gn(iGood)) / gn(fits)
+  IF (udata.goodFraction LT 0.5) THEN $
+     MESSAGE, 'Only ' + gn2s(udata.goodFraction*100.) + '% spectrum channels have "good" mask flag'
+  qsfit_log, 'Fraction of "good" channels: ' +  gn2s(udata.goodFraction*100.) + '%'
+  qsfit_log
+
 
   ;;Save median flux and error
   udata.median_flux = MEDIAN(yy[iGood])
