@@ -54,13 +54,13 @@ PRO qsfit_prepare_options, DEFAULT=default
 
         ;; Min redshift to keep the Balmer component fixed.
         balmer_fixed_min_z: 1.1, $
- 
+
         ;; Max redshift to keep the ironuv component fixed.
         ironuv_fixed_max_z: 0.4, $
 
         ;; Galaxy template: SWIRE_ELL2 SWIRE_SC SWIRE_ARP220
         ;; etc... (see qsfit_comp_galaxytemplate.pro)
-        galaxy_templ:       'SWIRE_ELL5', $ 
+        galaxy_templ:       'SWIRE_ELL5', $
 
         ;; Max redshift to use the galaxy template.  Beyond this
         ;; redshift the component is disabled
@@ -81,7 +81,7 @@ PRO qsfit_prepare_options, DEFAULT=default
         ;; If 1 creates PDF file of each step during fitting
         show_step: 0b              $
   }
-  
+
   IF (exists) THEN $
      !QSFIT_OPT = opt $
   ELSE  $
@@ -240,12 +240,10 @@ PRO qsfit_read_ascii, filename, ID=id, Z=z, EBV=ebv
   IF (~KEYWORD_SET(z)) THEN BEGIN
      MESSAGE, 'Redshift must be given through the Z= keyword'
   ENDIF
-  IF (z GT 2.12) THEN $
-     MESSAGE, 'Analysis of sources with Z>2.12 is not yet supported'
 
   template = {x: 0.d, y: 0.d, e: 0.d}
   data = greadtexttable(filename, ' ', /dropnull, template=template)
-  
+
   tmp = data.x - SHIFT(data.x,1)
   tmp = tmp[1:*] / data[1:*].x
   qsfit_log, 'Spectral resolution (min, max): ' + STRJOIN(gn2s(gminmax(tmp*3.e5)), ", ") + ' km s^-1'
@@ -273,6 +271,15 @@ PRO qsfit_read_ascii, filename, ID=id, Z=z, EBV=ebv
   yy = data.y
   ee = data.e
   qsfit_spec2restframe, xx, yy, ee, z, ebv
+
+  IF (gsearch(xx GT 1217, i)) THEN BEGIN
+     xx = xx[i]
+     yy = yy[i]
+     ee = ee[i]
+  ENDIF $
+  ELSE  $
+     MESSAGE, 'There is no data at wavelength > 1217AA'
+
   data.x = TEMPORARY(xx)
   data.y = TEMPORARY(yy)
   data.e = TEMPORARY(ee)
@@ -357,9 +364,6 @@ PRO qsfit_read_SDSS_DR10, filename, ID=id, Z=z, EBV=ebv
   IF (z LE 0) THEN $
      MESSAGE, 'Redhistf is negative: ' + gn2s(z)
 
-  IF (z GT 2.12) THEN $
-     MESSAGE, 'Analysis of sources with Z>2.12 is not yet supported'
-
   ;;Coordinates
   IF (gsearch(STRTRIM(STRMID(head, 0, 8), 2) EQ 'PLUG_RA' , i)) THEN ra = head[i]
   IF (gsearch(STRTRIM(STRMID(head, 0, 8), 2) EQ 'PLUG_DEC', i)) THEN de = head[i]
@@ -380,11 +384,6 @@ PRO qsfit_read_SDSS_DR10, filename, ID=id, Z=z, EBV=ebv
   ndrop = 100
   fits = fits[ndrop:gn(fits)-ndrop-1]
 
-  ;;Drop data below 1210 AA since it is significantly absorbed
-  i = WHERE(10.d^fits.loglam GT 1210)
-  gassert, i[0] NE -1
-  fits = fits[i]
-
   good = (fits.and_mask EQ 0)   AND   $
          (fits.ivar GT 0)       AND   $
          (fits.flux GT 0)
@@ -404,8 +403,8 @@ PRO qsfit_read_SDSS_DR10, filename, ID=id, Z=z, EBV=ebv
   tmp = REPLICATE(gnan(), gn(fits.ivar))
   tmp[iGood] = fits[iGood].ivar
   fits.ivar = tmp
-  
-  
+
+
   ;;Prepare user data with additional info from the FITS file.
   IF (gn(id) EQ 0) THEN id = ''
 
@@ -437,6 +436,14 @@ PRO qsfit_read_SDSS_DR10, filename, ID=id, Z=z, EBV=ebv
   ;;xx     : AA
   ;;yy, ee : 10^42 erg s^-1 AA^-1
   qsfit_spec2restframe, xx, yy, ee, z, ebv
+
+  IF (gsearch(xx GT 1217, i)) THEN BEGIN
+     xx = xx[i]
+     yy = yy[i]
+     ee = ee[i]
+  ENDIF $
+  ELSE  $
+     MESSAGE, 'There is no data at wavelength > 1217AA'
 
   ;;Save median flux and error
   udata.median_flux = MEDIAN(yy[iGood])
@@ -558,7 +565,7 @@ PRO qsfit_freeze, cont=cont, iron=iron, lines=lines
      gfit.comp.continuum.norm.fixed  = cont
      gfit.comp.continuum.x0.fixed    = 1
      gfit.comp.galaxy.norm.fixed     = cont
- 
+
      IF (gfit.data.(0).udata.z GT !QSFIT_OPT.alpha1_fixed_max_z) THEN BEGIN
         gfit.comp.continuum.alpha1.fixed  = cont
         ;;gfit.comp.continuum.dalpha.fixed  = cont  ;;CUSTOMIZABLE
@@ -639,7 +646,7 @@ PRO qsfit_compile
 
   IF (gsearch(STRMID(cnames, 0, 4) EQ 'ABS_', i)) THEN $
      gfit.expr.(0).model = '(1 - (' + STRJOIN(cnames[i], ' + ') + ')) * (' + gfit.expr.(0).model + ')'
-  
+
   ;;Compile GFIT model
   gfit_compile
 END
@@ -1080,7 +1087,7 @@ PRO qsfit_add_lineset
   IF (!QSFIT_OPT.unkLines GT 0) THEN $
      gfit_add_expr, 'expr_Unknown', STRJOIN('unk' + gn2s(INDGEN(!QSFIT_OPT.unkLines)+1), ' + ') $
   ELSE $
-     gfit_add_expr, 'expr_Unknown', '0'       
+     gfit_add_expr, 'expr_Unknown', '0'
   tmp = N_TAGS(gfit.plot.(0)) - 1
   gfit.plot.(0).expr_Unknown.plot  = 0 ;;will be enabled in qsfit_add_unknown
   gfit.plot.(0).expr_Unknown.label = 'Unknown'
@@ -1120,7 +1127,7 @@ PRO qsfit_add_iron
   IF (gfit.data.(0).udata.z GT !QSFIT_OPT.ironuv_fixed_max_z) THEN $
      ironuv.ew.fixed  = 0 $
   ELSE $
-     ironuv.ew.fixed  = 1  
+     ironuv.ew.fixed  = 1
 
   ironuv.fwhm.val    = 3000
   ironuv.fwhm.fixed  = 1
@@ -1501,7 +1508,7 @@ END
 ;  /NOASSOC (keyword)
 ;    Do not associate any "unknown" line with current line
 ;
-;RETURN VALUE: 
+;RETURN VALUE:
 ;  (a scalar structure whose template is given by
 ;  qsfit_reduce_line_templ()) A structure containing the luminosity,
 ;  FWHM and velocity offset of an emission line, and the associated
@@ -1512,7 +1519,7 @@ FUNCTION qsfit_reduce_line, cname, wave, NOASSOC=noassoc
   ON_ERROR, !glib.on_error
   COMMON GFIT
 
-  noassoc = KEYWORD_SET(noassoc) 
+  noassoc = KEYWORD_SET(noassoc)
 
   ;;Emission line FWHM broad/narrow separator
   brnasep = 1000 ;;CUSTOMIZABLE
@@ -2061,7 +2068,7 @@ FUNCTION qsfit_reduce
       IF ((allcont[i].quality AND 2b^6) GT 0) THEN $
          slopeBiased = 1
    ENDFOR
-   
+
    IF (slopeBiased) THEN BEGIN
       FOR i=0, ncont + gn(fixed_wave)-1 DO BEGIN
          IF ((allcont[i].quality AND 2b^6) EQ 0) THEN $
@@ -2119,9 +2126,9 @@ FUNCTION qsfit_reduce
         ENDIF
      ENDELSE
   ENDELSE
-  
+
   out = CREATE_STRUCT(out, 'ironuv', iron)
-  
+
   ;;Log QUALITY value
   IF (iron.quality NE 0) THEN BEGIN
      qsfit_log, 'Iron emission lines (UV):'
@@ -2252,7 +2259,7 @@ FUNCTION qsfit_reduce
   ;;--------------------------
   ;;Reduce emission lines data
   lines = qsfit_lineset()
-  
+
   ;; Calculate the sum of all QSFit components except "known" emission lines
   sum_wo_lines = expr.(0).model - expr.(0).expr_broadlines - expr.(0).expr_narrowlines
   sum_wo_lines /= (1. - expr.(0).expr_abslines)
@@ -2377,7 +2384,7 @@ FUNCTION qsfit_reduce
      balmer.lum     *= 3000. * qsfit_comp_sbpowerlaw_l3000()
      balmer.lum_err *= 3000. * qsfit_comp_sbpowerlaw_l3000()
   ENDELSE
-     
+
   out = CREATE_STRUCT(out, 'balmer', balmer)
 
   ;;Log QUALITY value
@@ -2399,7 +2406,7 @@ END
 
 ;=====================================================================
 ;NAME:
-;  
+;
 PRO qsfit_show_step, filename
   COMMON GFIT
   ;filename = []
@@ -2410,16 +2417,16 @@ PRO qsfit_show_step, filename
 
   gfit.plot.(0).main.title = ''
   gfit.plot.(0).main.rebin = 5
-  
+
   gfit_plot
   ggp_cmd, 'set key horizontal'
   IF (gn(filename) EQ 1) THEN ggp, term='pdf fontscale 0.65 linewidth 1.3', out=filename + '.pdf' $
   ELSE ggp
-  
+
   gfit_plot_resid
   IF (gn(filename) EQ 1) THEN ggp, term='pdf fontscale 0.65 linewidth 1.3', out=filename + '_resid.pdf' $
   ELSE ggp
-  
+
   gfit.plot.(0).main.rebin = rebin
   gfit.plot.(0).main.title = title
   ;gfit_report
@@ -2554,7 +2561,7 @@ PRO qsfit_report, red
   ON_ERROR, !glib.on_error
   COMMON GFIT
 
-  
+
   PRINT
   PRINT
   PRINT
@@ -2663,7 +2670,7 @@ PRO qsfit_plot, red, FILENAME=filename, s11=s11, RESID=resid, TERM=term
   ;;Plot continuum luminosities and slopes from QSFIT
   ggp_data, red.cont.wave, red.cont.lum / red.cont.wave, red.cont.lum_err / red.cont.wave, $
             pl='w yerrorbars title "Cont. lum." pt 5 ps 1 lc rgb "red"'
-  
+
   ;;FOR i=0, gn(red.cont)-1 DO BEGIN
   ;;   xx = red.cont[i].wave * [0.98, 1.02]
   ;;   yy = (xx / red.cont[i].wave)^red.cont[i].slope
@@ -2676,7 +2683,7 @@ PRO qsfit_plot, red, FILENAME=filename, s11=s11, RESID=resid, TERM=term
      xx = [1350, 3000, 5100]
      yy = [s11.logl1350, s11.logl3000, s11.logl5100]
      ll = 10.d^(yy-42) / xx
-     
+
      r0 = [1465, 2700, 4700, 6250]
      r1 = [1700, 2900, 5100, 6800]
      aa = [s11.alpha_civ, s11.alpha_mgii, s11.alpha_hb, s11.alpha_ha]
@@ -2760,7 +2767,7 @@ FUNCTION qsfit_flatten_results, red
   out = gstru_insert(out, 'dof'  , red.gfit.res.test_dof)
   out = gstru_insert(out, 'elapsed_time', red.gfit.res.elapsed_time)
   drop = ['file_output', 'gfit', 'expr', 'log', 'cont', 'lines', 'opt']
-  
+
   IF (gsearch(TAG_NAMES(out) EQ 'ABS_LINES')) THEN $
      drop = [drop, 'abs_lines']
   out = gstru_sub(out, drop=drop)
@@ -2824,7 +2831,7 @@ FUNCTION qsfit, file, INPUT=input, OUTDIR=outdir, PROCID=procid, TICTOC=tictoc, 
      ELSE: MESSAGE, 'Unsupported input file format: ' + STRING(input[0])
   ENDCASE
 
-  
+
   ;;Ensure unknown line center are evaluated according to current data
   unkCenter  = []
   unkEnabled = []
@@ -2900,7 +2907,7 @@ FUNCTION qsfit, file, INPUT=input, OUTDIR=outdir, PROCID=procid, TICTOC=tictoc, 
      RESTORE, file_dat
      RETURN, qsfit_res
   ENDIF
-  
+
 
   FOR iresample=1, resample DO BEGIN
      ;;Estimate elapsed time
