@@ -36,6 +36,8 @@ FUNCTION gfit_free_param
   ON_ERROR, !glib.on_error
 
   par = gfit_get_par()
+  IF (gn(par) EQ 0) THEN RETURN, 0
+
   dummy = gsearch((par.fixed EQ 0)   AND   (par.tied EQ ''), count=count)
   RETURN, count
 END

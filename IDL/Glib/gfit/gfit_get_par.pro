@@ -38,6 +38,8 @@ FUNCTION gfit_get_par, comp_enabled
   ON_ERROR, !glib.on_error
   COMMON GFIT
 
+  IF (gfit.comp.npar EQ 0) THEN RETURN, []
+
   par = REPLICATE(gfit.comp.(0).(0), gfit.comp.npar)
   comp_enabled = REPLICATE(0b, gfit.comp.npar)
   count = 0

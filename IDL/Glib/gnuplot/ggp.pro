@@ -110,7 +110,11 @@ PRO ggp                             $
 
   ;;Set output file
   IF (KEYWORD_SET(file_out)) THEN BEGIN
-     PRINTF, lun, 'set output "' + file_out + '"'
+     comment = ""
+     IF (STRPOS(term, "wxt") GE 0) THEN comment = "#"
+     IF (STRPOS(term, "x11") GE 0) THEN comment = "#"
+     IF (STRPOS(term, "qt")  GE 0) THEN comment = "#"
+     PRINTF, lun, comment, 'set output "' + file_out + '"'
   ENDIF $
   ELSE BEGIN
      PRINTF, lun, '#set term pdf'
