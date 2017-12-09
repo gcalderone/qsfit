@@ -84,7 +84,11 @@ PRO qsfit_prepare_options, DEFAULT=default
         ;; The minimum line resolution (in km/s) to fit the line.  If
         ;; the data has lower resolution the emission line will be
         ;; ignored.
-        accept_line_res: 70.       $
+        accept_line_res: 70.,      $
+
+        ;; The minimum wavelength used during fit.  Smaller
+        ;; wavelengths are ignored.
+        min_wavelength: 1217       $
   }
 
   IF (exists) THEN $
@@ -280,14 +284,14 @@ PRO qsfit_read_ascii, filename, ID=id, Z=z, EBV=ebv
      qsfit_spec2restframe, xx, yy, ee, z, ebv
   ENDIF
 
-  IF (gsearch(xx GT 1217, i)) THEN BEGIN
+  IF (gsearch(xx GT !QSFIT_OPT.min_wavelength, i)) THEN BEGIN
      xx = xx[i]
      yy = yy[i]
      ee = ee[i]
      data = data[i]
   ENDIF $
   ELSE  $
-     MESSAGE, 'There is no data at wavelength > 1217AA'
+     MESSAGE, 'There is no data at wavelength > ' + gn2s(!QSFIT_OPT.min_wavelength) + 'AA'
 
   data.x = TEMPORARY(xx)
   data.y = TEMPORARY(yy)
@@ -434,7 +438,7 @@ PRO qsfit_read_SDSS_DR10, filename, ID=id, Z=z, EBV=ebv
          (fits.ivar GT 0)       AND   $
          (fits.flux GT 0)
 
-  IF (gsearch(xx LE 1217, i)) THEN BEGIN
+  IF (gsearch(xx LE !QSFIT_OPT.min_wavelength, i)) THEN BEGIN
      good[i] = 0
   ENDIF
 
@@ -841,34 +845,34 @@ FUNCTION qsfit_lineset
   ;; - https://ned.ipac.caltech.edu/level5/Netzer/Netzer2_1.html
   ;; - http://www.star.ucl.ac.uk/~msw/lines.html
   ;;str.name = 'OVI'         & str.wave = 1033.82   &  str.type = 'N'  & all.add, str
-  ;;str.name = 'Lya'         & str.wave = 1215.24   &  str.type = 'BN' & all.add, str
-  ;;str.name = 'NV'          & str.wave = 1240.81   &  str.type = 'B'  & all.add, str
-  ;;str.name = 'OI'          & str.wave = 1305.53   &  str.type = 'B'  & all.add, str
-  ;;str.name = 'CII'         & str.wave = 1335.31   &  str.type = 'B'  & all.add, str
-    str.name = 'SiIV_1400'   & str.wave = 1399.8    &  str.type = 'B'  & all.add, str
-    str.name = 'CIV_1549'    & str.wave = 1549.48   &  str.type = 'B'  & all.add, str
-  ;;str.name = 'HeII'        & str.wave = 1640.4    &  str.type = 'B'  & all.add, str
-  ;;str.name = 'OIII'        & str.wave = 1665.85   &  str.type = 'B'  & all.add, str
-  ;;str.name = 'AlIII'       & str.wave = 1857.4    &  str.type = 'B'  & all.add, str
-    str.name = 'CIII_1909'   & str.wave = 1908.734  &  str.type = 'B'  & all.add, str ;;CIII]
-  ;;str.name = 'CII'         & str.wave = 2326.0    &  str.type = 'B'  & all.add, str
-    str.name = 'MgII_2798'   & str.wave = 2799.117  &  str.type = 'B'  & all.add, str
-  ;;str.name = 'NeV'         & str.wave = 3346.79   &  str.type = 'N'  & all.add, str ;;[NeV]
-    str.name = 'NeVI_3426'   & str.wave = 3426.85   &  str.type = 'N'  & all.add, str ;;[NeVI]
-    str.name = 'OII_3727'    & str.wave = 3729.875  &  str.type = 'N'  & all.add, str ;;[OII]  ;was 3727.09
-    str.name = 'NeIII_3869'  & str.wave = 3869.81   &  str.type = 'N'  & all.add, str ;;[NeIII]
-    str.name = 'Hd'          & str.wave = 4102.89   &  str.type = 'B'  & all.add, str
-    str.name = 'Hg'          & str.wave = 4341.68   &  str.type = 'B'  & all.add, str
-  ;;str.name = 'HeII'        & str.wave = ????      &  str.type = 'B'  & all.add, str
-    str.name = 'Hb'          & str.wave = 4862.68   &  str.type = 'BN' & all.add, str
-    str.name = 'OIII_4959'   & str.wave = 4960.295  &  str.type = 'N'  & all.add, str;;[OIII]
-    str.name = 'OIII_5007'   & str.wave = 5008.240  &  str.type = 'N'  & all.add, str;;[OIII]
-    str.name = 'HeI_5876'    & str.wave = 5877.30   &  str.type = 'B'  & all.add, str
-    str.name = 'NII_6549'    & str.wave = 6549.86   &  str.type = 'N'  & all.add, str;;[NII]
-    str.name = 'Ha'          & str.wave = 6564.61   &  str.type = 'BN' & all.add, str
-    str.name = 'NII_6583'    & str.wave = 6585.27   &  str.type = 'N'  & all.add, str;;[NII]
-    str.name = 'SII_6716'    & str.wave = 6718.29   &  str.type = 'N'  & all.add, str ;;[SII]
-    str.name = 'SII_6731'    & str.wave = 6732.67   &  str.type = 'N'  & all.add, str ;;[SII]
+    str.name = 'Lya'         & str.wave = 1215.24   &  str.type = 'BN' & IF (str.wave GT !QSFIT_OPT.min_wavelength) THEN all.add, str
+    str.name = 'NV'          & str.wave = 1240.81   &  str.type = 'B'  & IF (str.wave GT !QSFIT_OPT.min_wavelength) THEN all.add, str
+    str.name = 'OI'          & str.wave = 1305.53   &  str.type = 'B'  & IF (str.wave GT !QSFIT_OPT.min_wavelength) THEN all.add, str
+    str.name = 'CII'         & str.wave = 1335.31   &  str.type = 'B'  & IF (str.wave GT !QSFIT_OPT.min_wavelength) THEN all.add, str
+    str.name = 'SiIV_1400'   & str.wave = 1399.8    &  str.type = 'B'  & IF (str.wave GT !QSFIT_OPT.min_wavelength) THEN all.add, str
+    str.name = 'CIV_1549'    & str.wave = 1549.48   &  str.type = 'B'  & IF (str.wave GT !QSFIT_OPT.min_wavelength) THEN all.add, str
+  ;;str.name = 'HeII'        & str.wave = 1640.4    &  str.type = 'B'  & IF (str.wave GT !QSFIT_OPT.min_wavelength) THEN all.add, str
+  ;;str.name = 'OIII'        & str.wave = 1665.85   &  str.type = 'B'  & IF (str.wave GT !QSFIT_OPT.min_wavelength) THEN all.add, str
+  ;;str.name = 'AlIII'       & str.wave = 1857.4    &  str.type = 'B'  & IF (str.wave GT !QSFIT_OPT.min_wavelength) THEN all.add, str
+    str.name = 'CIII_1909'   & str.wave = 1908.734  &  str.type = 'B'  & IF (str.wave GT !QSFIT_OPT.min_wavelength) THEN all.add, str ;;CIII]
+  ;;str.name = 'CII'         & str.wave = 2326.0    &  str.type = 'B'  & IF (str.wave GT !QSFIT_OPT.min_wavelength) THEN all.add, str
+    str.name = 'MgII_2798'   & str.wave = 2799.117  &  str.type = 'B'  & IF (str.wave GT !QSFIT_OPT.min_wavelength) THEN all.add, str
+  ;;str.name = 'NeV'         & str.wave = 3346.79   &  str.type = 'N'  & IF (str.wave GT !QSFIT_OPT.min_wavelength) THEN all.add, str ;;[NeV]
+    str.name = 'NeVI_3426'   & str.wave = 3426.85   &  str.type = 'N'  & IF (str.wave GT !QSFIT_OPT.min_wavelength) THEN all.add, str ;;[NeVI]
+    str.name = 'OII_3727'    & str.wave = 3729.875  &  str.type = 'N'  & IF (str.wave GT !QSFIT_OPT.min_wavelength) THEN all.add, str ;;[OII]  ;was 3727.09
+    str.name = 'NeIII_3869'  & str.wave = 3869.81   &  str.type = 'N'  & IF (str.wave GT !QSFIT_OPT.min_wavelength) THEN all.add, str ;;[NeIII]
+    str.name = 'Hd'          & str.wave = 4102.89   &  str.type = 'B'  & IF (str.wave GT !QSFIT_OPT.min_wavelength) THEN all.add, str
+    str.name = 'Hg'          & str.wave = 4341.68   &  str.type = 'B'  & IF (str.wave GT !QSFIT_OPT.min_wavelength) THEN all.add, str
+  ;;str.name = 'HeII'        & str.wave = ????      &  str.type = 'B'  & IF (str.wave GT !QSFIT_OPT.min_wavelength) THEN all.add, str
+    str.name = 'Hb'          & str.wave = 4862.68   &  str.type = 'BN' & IF (str.wave GT !QSFIT_OPT.min_wavelength) THEN all.add, str
+    str.name = 'OIII_4959'   & str.wave = 4960.295  &  str.type = 'N'  & IF (str.wave GT !QSFIT_OPT.min_wavelength) THEN all.add, str;;[OIII]
+    str.name = 'OIII_5007'   & str.wave = 5008.240  &  str.type = 'N'  & IF (str.wave GT !QSFIT_OPT.min_wavelength) THEN all.add, str;;[OIII]
+    str.name = 'HeI_5876'    & str.wave = 5877.30   &  str.type = 'B'  & IF (str.wave GT !QSFIT_OPT.min_wavelength) THEN all.add, str
+    str.name = 'NII_6549'    & str.wave = 6549.86   &  str.type = 'N'  & IF (str.wave GT !QSFIT_OPT.min_wavelength) THEN all.add, str;;[NII]
+    str.name = 'Ha'          & str.wave = 6564.61   &  str.type = 'BN' & IF (str.wave GT !QSFIT_OPT.min_wavelength) THEN all.add, str
+    str.name = 'NII_6583'    & str.wave = 6585.27   &  str.type = 'N'  & IF (str.wave GT !QSFIT_OPT.min_wavelength) THEN all.add, str;;[NII]
+    str.name = 'SII_6716'    & str.wave = 6718.29   &  str.type = 'N'  & IF (str.wave GT !QSFIT_OPT.min_wavelength) THEN all.add, str ;;[SII]
+    str.name = 'SII_6731'    & str.wave = 6732.67   &  str.type = 'N'  & IF (str.wave GT !QSFIT_OPT.min_wavelength) THEN all.add, str ;;[SII]
 
   all = all.toArray()
 
