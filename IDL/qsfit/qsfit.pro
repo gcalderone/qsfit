@@ -28,7 +28,7 @@
 ;  The QSFIT version.
 ;
 FUNCTION qsfit_version
-  RETURN, '1.2.2'
+  RETURN, '1.2.3'
 END
 
 ;=====================================================================

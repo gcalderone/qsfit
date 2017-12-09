@@ -1,3 +1,19 @@
+- Dec. 09, 2017  (ver. 1.2.3)
+	+ QSFit now accept the `z=0` keyword, implying that the input data
+	are already given in emitted luminosity (rather than observed
+	flux), and the wavelengths are already in the source rest frame;
+
+	+ We added the !QSFIT_OPT.min_wavelength option, to specify the
+	minimum wavelength (in AA) to be considered in the fit.  Smaller
+	wavelengths are ignored;
+
+	+ We added the !QSFIT_OPT.accept_line_res option to specify the
+	minimum emission line resolution (in km s^-1) to consider the line
+	in the fit.  If the resolution of a line is smaller the whole line
+	range is ignored;
+
+	+ Minor bug fix.
+
 - Nov 02, 2017  (ver. 1.2.2)
 	+ QSFit is now able to read data from an ASCII text file (rather
 	than from a SDSS DR10 FITS file): simply pass the `input='ASCII``
