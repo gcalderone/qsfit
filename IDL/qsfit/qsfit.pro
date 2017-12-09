@@ -76,10 +76,15 @@ PRO qsfit_prepare_options, DEFAULT=default
 
         ;; String containing a (comma separated) list of rest frame
         ;; wavelengths of the absorption lines
-        abslines_wavelengths: '', $
+        abslines_wavelengths: '',  $
 
         ;; If 1 creates PDF file of each step during fitting
-        show_step: 0b              $
+        show_step: 0b,             $
+
+        ;; The minimum line resolution (in km/s) to fit the line.  If
+        ;; the data has lower resolution the emission line will be
+        ;; ignored.
+        accept_line_res: 70.       $
   }
 
   IF (exists) THEN $
@@ -237,7 +242,7 @@ PRO qsfit_read_ascii, filename, ID=id, Z=z, EBV=ebv
   IF (gn(ebv) EQ 0) THEN BEGIN
      MESSAGE, 'Color excess must be given through the EBV= keyword'
   ENDIF
-  IF (~KEYWORD_SET(z)) THEN BEGIN
+  IF (gn(z) EQ 0) THEN BEGIN
      MESSAGE, 'Redshift must be given through the Z= keyword'
   ENDIF
 
@@ -270,12 +275,16 @@ PRO qsfit_read_ascii, filename, ID=id, Z=z, EBV=ebv
   xx = data.x
   yy = data.y
   ee = data.e
-  qsfit_spec2restframe, xx, yy, ee, z, ebv
+
+  IF (z GT 0) THEN BEGIN
+     qsfit_spec2restframe, xx, yy, ee, z, ebv
+  ENDIF
 
   IF (gsearch(xx GT 1217, i)) THEN BEGIN
      xx = xx[i]
      yy = yy[i]
      ee = ee[i]
+     data = data[i]
   ENDIF $
   ELSE  $
      MESSAGE, 'There is no data at wavelength > 1217AA'
@@ -357,11 +366,11 @@ PRO qsfit_read_SDSS_DR10, filename, ID=id, Z=z, EBV=ebv
   ENDELSE
 
   ;;Redshift
-  IF (~KEYWORD_SET(z)) THEN BEGIN
+  IF (gn(z) EQ 0) THEN BEGIN
      z = MRDFITS(filename, 2, /silen)
      z = z.z
   ENDIF
-  IF (z LE 0) THEN $
+  IF (z LT 0) THEN $
      MESSAGE, 'Redhistf is negative: ' + gn2s(z)
 
   ;;Coordinates
@@ -414,10 +423,12 @@ PRO qsfit_read_SDSS_DR10, filename, ID=id, Z=z, EBV=ebv
   tmp = tmp[1:*] / xx[1:*]
   qsfit_log, 'Spectral resolution (min, max): ' + STRJOIN(gn2s(gminmax(tmp*3.e5)), ", ") + ' km s^-1'
 
-  ;;Transform to rest frame.  Final units are:
-  ;;xx     : AA
-  ;;yy, ee : 10^42 erg s^-1 AA^-1
-  qsfit_spec2restframe, xx, yy, ee, z, ebv
+  IF (z GT 0) THEN BEGIN
+     ;;Transform to rest frame.  Final units are:
+     ;;xx     : AA
+     ;;yy, ee : 10^42 erg s^-1 AA^-1
+     qsfit_spec2restframe, xx, yy, ee, z, ebv
+  ENDIF
 
   good = (fits.and_mask EQ 0)   AND   $
          (fits.ivar GT 0)       AND   $
@@ -513,7 +524,7 @@ FUNCTION qsfit_line_coverage, wave, width, INDEX=index, RESOLUTION=resolution
   COMMON GFIT
 
   ;; Calculate optimal grid
-  IF (gn(resolution) EQ 0) THEN resolution = 70. ;km / s
+  IF (gn(resolution) EQ 0) THEN resolution = !QSFIT_OPT.accept_line_res
   step = resolution / 3.e5 * wave
   width_aa = width / 3.e5 * wave
 
