@@ -1285,7 +1285,7 @@ PRO qsfit_add_unknown
         REPEAT BEGIN
            maxresid = MAX((yy - mo) / ee, imax)
            IF (maxresid LE 0) THEN BEGIN
-              gprint, 'No residual is greater than 0, skip searching further residuals.'
+              qsfit_log, 'No residual is greater than 0, skip searching further residuals.'
               RETURN
            ENDIF
 
