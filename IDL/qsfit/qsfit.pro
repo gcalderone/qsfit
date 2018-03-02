@@ -1,5 +1,5 @@
 ; *******************************************************************
-; Copyright (C) 2016-2017 Giorgio Calderone
+; Copyright (C) 2016-2018 Giorgio Calderone
 ;
 ; This program is free software; you can redistribute it and/or
 ; modify it under the terms of the GNU General Public icense
@@ -28,7 +28,7 @@
 ;  The QSFIT version.
 ;
 FUNCTION qsfit_version
-  RETURN, '1.2.3'
+  RETURN, '1.2.4'
 END
 
 ;=====================================================================
@@ -88,7 +88,7 @@ PRO qsfit_prepare_options, DEFAULT=default
 
         ;; The minimum wavelength used during fit.  Smaller
         ;; wavelengths are ignored.
-        min_wavelength: 1217       $
+        min_wavelength: 1210       $
   }
 
   IF (exists) THEN $
@@ -177,7 +177,7 @@ PRO qsfit_spec2restframe, x, y, e, z, ebv
   qsfit_log, 'E(B-V) : ' + gn2s(ebv)
 
   ;;De-reddening
-  CCM_UNRED, [1450, 3000, 5100.], [1,1,1.], DOUBLE(ebv), dered
+  CCM_UNRED, [1450, 3000, 5100.], [1,1,1.], ebv, dered
   qsfit_log, 'Dereddening factors @ 1450, 3000, 5100 AA: ' + STRJOIN(gn2s(dered), ', ')
   CCM_UNRED, x, y, ebv, y
   CCM_UNRED, x, e, ebv, e
@@ -280,7 +280,20 @@ PRO qsfit_read_ascii, filename, ID=id, Z=z, EBV=ebv
   yy = data.y
   ee = data.e
 
+  z = DOUBLE(z)
+  ebv = DOUBLE(ebv)
+  HELP, xx, yy, ee, z, ebv
+  IF ((gtype(xx)  NE 'DOUBLE')  OR   $
+      (gtype(yy)  NE 'DOUBLE')  OR   $
+      (gtype(ee)  NE 'DOUBLE')  OR   $
+      (gtype(z)   NE 'DOUBLE')  OR   $
+      (gtype(ebv) NE 'DOUBLE')) THEN $
+         MESSAGE, 'One or more variables are not DOUBLE'  
+
   IF (z GT 0) THEN BEGIN
+     ;;Transform to rest frame.  Final units are:
+     ;;xx     : AA
+     ;;yy, ee : 10^42 erg s^-1 AA^-1
      qsfit_spec2restframe, xx, yy, ee, z, ebv
   ENDIF
 
@@ -427,6 +440,16 @@ PRO qsfit_read_SDSS_DR10, filename, ID=id, Z=z, EBV=ebv
   tmp = tmp[1:*] / xx[1:*]
   qsfit_log, 'Spectral resolution (min, max): ' + STRJOIN(gn2s(gminmax(tmp*3.e5)), ", ") + ' km s^-1'
 
+  z = DOUBLE(z)
+  ebv = DOUBLE(ebv)
+  HELP, xx, yy, ee, z, ebv
+  IF ((gtype(xx)  NE 'DOUBLE')  OR   $
+      (gtype(yy)  NE 'DOUBLE')  OR   $
+      (gtype(ee)  NE 'DOUBLE')  OR   $
+      (gtype(z)   NE 'DOUBLE')  OR   $
+      (gtype(ebv) NE 'DOUBLE')) THEN $
+         MESSAGE, 'One or more variables are not DOUBLE'  
+
   IF (z GT 0) THEN BEGIN
      ;;Transform to rest frame.  Final units are:
      ;;xx     : AA
@@ -535,6 +558,10 @@ FUNCTION qsfit_line_coverage, wave, width, INDEX=index, RESOLUTION=resolution
   ;;Match index points against optimal grid
   index = WHERE(ABS(gfit.data.(0).x - wave) LT width_aa/2.   AND   (gfit.data.(0).group GE 0))
   IF (index[0] EQ -1) THEN RETURN, 0.
+
+  ;;Ensure the whole line is visible within the spectrum
+  IF (gfit.data.(0).x[0]  GT wave - width_aa/2.) THEN RETURN, 0.
+  IF (gfit.data.(0).x[-1] LT wave + width_aa/2.) THEN RETURN, 0.
 
   good = gfit.data.(0).x[index]
   good = HISTOGRAM(good, binsize=step)
@@ -846,9 +873,9 @@ FUNCTION qsfit_lineset
   ;; - http://www.star.ucl.ac.uk/~msw/lines.html
   ;;str.name = 'OVI'         & str.wave = 1033.82   &  str.type = 'N'  & all.add, str
     str.name = 'Lya'         & str.wave = 1215.24   &  str.type = 'BN' & IF (str.wave GT !QSFIT_OPT.min_wavelength) THEN all.add, str
-    str.name = 'NV'          & str.wave = 1240.81   &  str.type = 'B'  & IF (str.wave GT !QSFIT_OPT.min_wavelength) THEN all.add, str
-    str.name = 'OI'          & str.wave = 1305.53   &  str.type = 'B'  & IF (str.wave GT !QSFIT_OPT.min_wavelength) THEN all.add, str
-    str.name = 'CII'         & str.wave = 1335.31   &  str.type = 'B'  & IF (str.wave GT !QSFIT_OPT.min_wavelength) THEN all.add, str
+    str.name = 'NV_1241'     & str.wave = 1240.81   &  str.type = 'B'  & IF (str.wave GT !QSFIT_OPT.min_wavelength) THEN all.add, str
+    str.name = 'OI_1306'     & str.wave = 1305.53   &  str.type = 'B'  & IF (str.wave GT !QSFIT_OPT.min_wavelength) THEN all.add, str
+    str.name = 'CII_1335'    & str.wave = 1335.31   &  str.type = 'B'  & IF (str.wave GT !QSFIT_OPT.min_wavelength) THEN all.add, str
     str.name = 'SiIV_1400'   & str.wave = 1399.8    &  str.type = 'B'  & IF (str.wave GT !QSFIT_OPT.min_wavelength) THEN all.add, str
     str.name = 'CIV_1549'    & str.wave = 1549.48   &  str.type = 'B'  & IF (str.wave GT !QSFIT_OPT.min_wavelength) THEN all.add, str
   ;;str.name = 'HeII'        & str.wave = 1640.4    &  str.type = 'B'  & IF (str.wave GT !QSFIT_OPT.min_wavelength) THEN all.add, str
@@ -921,7 +948,7 @@ PRO qsfit_ignore_data_on_missing_lines
      ;;Ensure that the whole line has at least 60% of "good" channels
      IF (coverage LT 0.6) THEN BEGIN
         IF (toBeIgnored[0] NE -1) THEN BEGIN
-           qsfit_log, 'Ignoring data between ' + $
+           qsfit_log, '   Ignoring data between ' + $
                       gn2s(ROUND(MIN(gfit.data.(0).x[tobeIgnored]))) + 'A and ' + $
                       gn2s(ROUND(MAX(gfit.data.(0).x[tobeIgnored]))) + 'A'
            gfit.data.(0).group[tobeIgnored]=-2
@@ -1181,7 +1208,8 @@ PRO qsfit_add_iron
   gfit.plot.(0).expr_iron.label = 'Iron'
   gfit.plot.(0).expr_iron.gp = 'w line ls 1 lw 1 lt rgb "dark-green"'
 
-  qsfit_compile
+  IF (gfit_free_param() GT 0) THEN $
+     qsfit_compile
 END
 
 
@@ -2477,7 +2505,8 @@ PRO qsfit_run
 
   ;;Fit iron templates
   qsfit_add_iron
-  gfit_run
+  IF (gfit_free_param() GT 0) THEN $
+     gfit_run
   qsfit_show_step, 'Step3'
   qsfit_freeze, iron=1
 
@@ -2848,6 +2877,7 @@ FUNCTION qsfit, file, INPUT=input, OUTDIR=outdir, PROCID=procid, TICTOC=tictoc, 
   ;;Ensure any previously opened file is closed
   gprint_mgr, /close
   gprint_mgr, use_stdout=1 ;;write on stabdard output
+  CLOSE, /all
 
   ;;Catch errors to properly close the log file and return a NULL
   ;;value.
@@ -2943,9 +2973,14 @@ FUNCTION qsfit, file, INPUT=input, OUTDIR=outdir, PROCID=procid, TICTOC=tictoc, 
 
      IF (KEYWORD_SET(extra)) THEN BEGIN
         qsfit_log, 'Extra keywords:'
-        gps, extra, row=0, out=tmp
-        FOR i=0, gn(tmp)-1 DO $
-           qsfit_log, tmp[i]
+        FOR i=0, N_TAGS(extra)-1 DO BEGIN
+           s = (TAG_NAMES(extra))[i] + '='
+           IF (gtype(extra.(i), /float)) THEN $
+              s += STRTRIM(STRING(FORMAT=gcfmt('%30.15fd'), extra.(i)), 2) $
+           ELSE $
+              s += STRING(extra.(i))
+           qsfit_log, s
+        ENDFOR
      ENDIF
      qsfit_log
 

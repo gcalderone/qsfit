@@ -1,3 +1,21 @@
+- Mar. 03, 2018  (ver. 1.2.4)
+	+ All calculations are now forced to be done with DOUBLE precision.
+	This ensure the reproducibility of the results regardless of the
+	data type of the redshift and color excess input parameters;
+
+	+ Added support for three more emission lines: NV 1241, OI 1306
+	and CII 1335;
+
+	+ Bugfix: in very few cases QSFit computed the wrong spectral
+	coverage for the emission lines, enabling their corresponding
+	components instead of disabling them;
+
+	+ Minor bugfix
+
+	+ The whole QSFit catalog has been re-created using this QSFit
+	version.  The results are available at the following address:
+	http://qsfit.inaf.it/cat_1.24/
+
 - Dec. 09, 2017  (ver. 1.2.3)
 	+ QSFit now accept the `z=0` keyword, implying that the input data
 	are already given in emitted luminosity (rather than observed
