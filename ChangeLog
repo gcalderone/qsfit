@@ -6,6 +6,11 @@
 	+ Added support for three more emission lines: NV 1241, OI 1306
 	and CII 1335;
 
+	+ Bugfix: the QSFit software used to create the first published
+	catalog (v1.2) had a bug in the code which freezes/thaws the iron
+	template component at optical wavelengths.  This bug affected only
+	the spectral estimates for the sources with z < 0.4.
+
 	+ Bugfix: in very few cases QSFit computed the wrong spectral
 	coverage for the emission lines, enabling their corresponding
 	components instead of disabling them;

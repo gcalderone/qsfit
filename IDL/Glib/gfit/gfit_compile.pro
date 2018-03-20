@@ -117,14 +117,14 @@ PRO gfit_compile
         cc = gfit.comp.(icomp)
         IF (cc.enabled) THEN BEGIN
            ;;Evaluate component values for each X
-           aa = '  ' + cnames[icomp] + ' = ' + cc.funcName + '(x'
+           aa = '  ' + cnames[icomp] + ' = DOUBLE(' + cc.funcName + '(x'
            IF (cc.npar GE 1) THEN BEGIN
               tmp = 'par[' + gn2s(INDGEN(cc.npar) + npar) + ']'
               aa += ', ' + STRJOIN(tmp, ', ')
            ENDIF
            IF (cc.hasopt) THEN $
               aa += ', _extra=gfit.comp.' + cnames[icomp] + '.opt'
-           aa += ')'
+           aa += '))'
            PRINTF, lun, aa
         ENDIF $
         ELSE BEGIN
