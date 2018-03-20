@@ -1,5 +1,5 @@
 ; *******************************************************************
-; Copyright (C) 2016-2017 Giorgio Calderone
+; Copyright (C) 2016-2018 Giorgio Calderone
 ;
 ; This program is free software; you can redistribute it and/or
 ; modify it under the terms of the GNU General Public icense
@@ -30,41 +30,38 @@
 ;    The index of the data set to plot.  If not given the first
 ;    dataset (i.e. IDATA=0) is assumed.
 ;
-PRO gfit_plot_resid, idata
+PRO gfit_plot_resid, OBS=iobs
   COMPILE_OPT IDL2
   ON_ERROR, !glib.on_error
   COMMON GFIT
 
-  ;;Data available?
-  IF (gfit.data.nn EQ 0) THEN RETURN
-
   ;;Evaluate model
-  gfit_eval
+  gfit_run, /eval
 
-  IF (N_PARAMS() EQ 0) THEN idata = 0
-  cmp = gfit.cmp.(idata)
+  IF (gn(iobs) EQ 0) THEN iobs = 0
+  obs = gfit.obs.(iobs)
 
   ggp_clear
   ggp_cmd, 'set bars 0'
   ggp_cmd, 'set grid'
-  ggp_cmd, 'set  title "' + gfit.plot.(idata).main.title + '"'
-  ggp_cmd, 'set xlabel "' + gfit.plot.(idata).main.xtit  + '"'
+  ggp_cmd, 'set  title "' + obs.plot.title + '"'
+  ggp_cmd, 'set xlabel "' + obs.plot.xtit  + '"'
   ggp_cmd, 'set ylabel "Residuals [{/Symbol s}]"'
-  ggp_cmd, 'set xrange [' + gn2s(MIN(cmp.x)) + ':' + gn2s(MAX(cmp.x)) + ']'
-  IF (gfit.plot.(idata).main.xlog) THEN ggp_cmd, 'set logscale x'
+  ggp_cmd, 'set xrange [' + gn2s(MIN(obs.eval.x)) + ':' + gn2s(MAX(obs.eval.x)) + ']'
+  IF (obs.plot.xlog) THEN ggp_cmd, 'set logscale x'
 
-  x = cmp.x
-  y = (cmp.y - cmp.m) / cmp.e
-  gfit_rebin, gfit.plot.(idata).main.rebin, x, y
+  x = obs.eval.x
+  y = (obs.eval.y - obs.eval.m) / obs.eval.e
+  ;gfit_rebin, obs.plot.rebin, x, y
   ggp_data, x, y, plot='w points notitle pt 1 ps 0.7 lc rgb "black"'
-  ;;ggp_data, cmp.x, y, REPLICATE(1., gn(y)), plot='with yerrorbars notitle lt rgb "gray"'
+  ;;ggp_data, eval.x, y, REPLICATE(1., gn(y)), plot='with yerrorbars notitle lt rgb "gray"'
 
   ;;Horizontal "zero" line
-  ggp_data, name='zero', gminmax(cmp.x), [0,0]
+  ggp_data, name='zero', gminmax(obs.eval.x), [0,0]
   ggp_plot, '$zero w line notitle dt 2 lw 2 lt rgb "orange"'
 
   ;;Cumulative reduced fit statistic
-  fs = TOTAL(((cmp.y - cmp.m) / cmp.e)^2., /cumulative) / gfit.res.test_dof
+  fs = TOTAL(y^2., /cumulative) / gfit.res.test_dof
   ggp_cmd, 'set y2label "Cumulative {/Symbol c}^2_{red}"'
   ggp_cmd, 'set ytics nomirror'
   ggp_cmd, 'set y2tics'
@@ -72,7 +69,7 @@ PRO gfit_plot_resid, idata
   ggp_cmd, 'set y2range [' + gn2s(MIN(fs)) + ':' + gn2s(MAX(fs)) + ']'
   ggp_cmd, 'set key bottom right'
 
-  ggp_data, name='cfs', cmp.x, fs
+  ggp_data, name='cfs', obs.eval.x, fs
   ggp_plot, '$cfs w l title "Reduced cumul. {/Symbol c}^2" ls 1 lw 2 lt rgb "red" axes x1y2'
 END
 

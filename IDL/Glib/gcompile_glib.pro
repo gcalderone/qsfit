@@ -1,5 +1,5 @@
 ; *******************************************************************
-; Copyright (C) 2016-2017 Giorgio Calderone
+; Copyright (C) 2016-2018 Giorgio Calderone
 ;
 ; This program is free software; you can redistribute it and/or
 ; modify it under the terms of the GNU General Public icense
@@ -63,7 +63,6 @@ PRO gcompile_glib, path
   FORWARD_FUNCTION gfit_comp_simplepar
   FORWARD_FUNCTION gfit_weighted_dev_gauss
   FORWARD_FUNCTION gfit_component
-  FORWARD_FUNCTION gfit_free_param
   FORWARD_FUNCTION gfit_get_covar
   FORWARD_FUNCTION gfit_get_par
   FORWARD_FUNCTION ggp_get_state
@@ -162,23 +161,29 @@ PRO gcompile_glib, path
   gcompile, /hold, path + 'gfit/components/gfit_comp_simplepar.pro'
   gcompile, /hold, path + 'gfit/data_type/gfit_teststat_gauss.pro'
   gcompile, /hold, path + 'gfit/data_type/gfit_weighted_dev_gauss.pro'
+  gcompile, /hold, path + 'gfit/gfit_add_obs.pro'
   gcompile, /hold, path + 'gfit/gfit_add_comp.pro'
   gcompile, /hold, path + 'gfit/gfit_add_data.pro'
-  gcompile, /hold, path + 'gfit/gfit_add_expr.pro'
-  gcompile, /hold, path + 'gfit/gfit_prepare_cmp.pro'
+  gcompile, /hold, path + 'gfit/gfit_add_aux.pro'
+  gcompile, /hold, path + 'gfit/gfit_prepare_eval.pro'
   gcompile, /hold, path + 'gfit/gfit_compile.pro'
   gcompile, /hold, path + 'gfit/gfit_component.pro'
-  gcompile, /hold, path + 'gfit/gfit_eval.pro'
-  gcompile, /hold, path + 'gfit/gfit_free_param.pro'
   gcompile, /hold, path + 'gfit/gfit_get_covar.pro'
+  gcompile, /hold, path + 'gfit/gfit_set_parval.pro'
   gcompile, /hold, path + 'gfit/gfit_get_par.pro'
-  gcompile, /hold, path + 'gfit/gfit_plot_data.pro'
   gcompile, /hold, path + 'gfit/gfit_rebin.pro'
   gcompile, /hold, path + 'gfit/gfit_plot.pro'
   gcompile, /hold, path + 'gfit/gfit_plot_resid.pro'
   gcompile, /hold, path + 'gfit/gfit_report.pro'
   gcompile, /hold, path + 'gfit/gfit_restore.pro'
   gcompile, /hold, path + 'gfit/gfit_run.pro'
+  gcompile, /hold, path + 'gfit/examples/gfit_ex1.pro'
+  gcompile, /hold, path + 'gfit/examples/gfit_ex2.pro'
+  gcompile, /hold, path + 'gfit/examples/gfit_ex3.pro'
+  gcompile, /hold, path + 'gfit/examples/gfit_ex4.pro'
+  gcompile, /hold, path + 'gfit/examples/gfit_ex5.pro'
+  gcompile, /hold, path + 'gfit/examples/gfit_ex_fakedata.pro'
+  gcompile, /hold, path + 'gfit/examples/user_defined_func.pro'
 
   ;;Compile the package
   gcompile

@@ -1,5 +1,5 @@
 ; *******************************************************************
-; Copyright (C) 2016-2017 Giorgio Calderone
+; Copyright (C) 2016-2018 Giorgio Calderone
 ;
 ; This program is free software; you can redistribute it and/or
 ; modify it under the terms of the GNU General Public icense
@@ -38,20 +38,20 @@ PRO gfit_ex1
   gfit_add_comp, 'sigma2'
 
   ;;Model expression
-  gfit.expr.(0).model = 'continuum + norm1 * EXP(-(x - center1)^2 / (2 * sigma1^2)) / SQRT(2*!PI) / sigma1 + norm2 * EXP(-(x - center2)^2 / (2 * sigma2^2)) / SQRT(2*!PI) / sigma2'
+  gfit.obs.(0).expr = 'continuum + norm1 * EXP(-(x - center1)^2 / (2 * sigma1^2)) / SQRT(2*!PI) / sigma1 + norm2 * EXP(-(x - center2)^2 / (2 * sigma2^2)) / SQRT(2*!PI) / sigma2'
 
   ;;Secondary expressions to be plotted
-  gfit_add_expr, 'line1', 'norm1 * EXP(-(x - center1)^2 / (2 * sigma1^2)) / SQRT(2*!PI) / sigma1'
-  gfit_add_expr, 'line2', 'norm2 * EXP(-(x - center2)^2 / (2 * sigma2^2)) / SQRT(2*!PI) / sigma2'
+  gfit_add_aux, 'line1', 'norm1 * EXP(-(x - center1)^2 / (2 * sigma1^2)) / SQRT(2*!PI) / sigma1'
+  gfit_add_aux, 'line2', 'norm2 * EXP(-(x - center2)^2 / (2 * sigma2^2)) / SQRT(2*!PI) / sigma2'
 
   ;;Guess parameters
-  gfit.comp.continuum.par.val  = 1. 
-  gfit.comp.norm1.par.val      = 0.5
-  gfit.comp.center1.par.val    = 0.1
-  gfit.comp.sigma1.par.val     = 0.5
-  gfit.comp.norm2.par.val      = 0.5
-  gfit.comp.center2.par.val    = 0.9
-  gfit.comp.sigma2.par.val     = 0.2
+  gfit.comp.continuum.par.par.val  = 1. 
+  gfit.comp.norm1.par.par.val      = 0.5
+  gfit.comp.center1.par.par.val    = 0.1
+  gfit.comp.sigma1.par.par.val     = 0.5
+  gfit.comp.norm2.par.par.val      = 0.5
+  gfit.comp.center2.par.par.val    = 0.9
+  gfit.comp.sigma2.par.par.val     = 0.2
 
   ;;Run fit
   gfit_compile

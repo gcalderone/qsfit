@@ -1,7 +1,7 @@
 ; *******************************************************************
 ; gcompile: a runtime compiler for IDL
 ;
-; Copyright (C) 2015-2017 Giorgio Calderone
+; Copyright (C) 2015-2018 Giorgio Calderone
 ;
 ; This program is free software; you can redistribute it and/or
 ; modify it under the terms of the GNU General Public icense

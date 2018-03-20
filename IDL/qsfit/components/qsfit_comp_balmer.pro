@@ -1,5 +1,5 @@
 ; *******************************************************************
-; Copyright (C) 2016-2017 Giorgio Calderone
+; Copyright (C) 2016-2018 Giorgio Calderone
 ;
 ; This program is free software; you can redistribute it and/or
 ; modify it under the terms of the GNU General Public icense
@@ -167,7 +167,7 @@ END
 ;      Angstrom).
 ;
 PRO qsfit_comp_balmer_hol_prepare, hol_x, hol
-  path = FILE_DIRNAME(ROUTINE_FILEPATH('qsfit_comp_balmer_hol_prepare')) + PATH_SEP()
+  path = FILE_DIRNAME(ROUTINE_FILEPATH('qsfit_comp_balmer_hol_compute')) + PATH_SEP()
   IF (gfexists(path + 'qsfit_comp_balmer_hol.dat')) THEN BEGIN
      RESTORE,  path + 'qsfit_comp_balmer_hol.dat'
      RETURN
@@ -203,6 +203,41 @@ PRO qsfit_comp_balmer_hol_prepare, hol_x, hol
   SAVE, file=path + 'qsfit_comp_balmer_hol.dat', hol_x, hol, /compress
 END
 
+
+PRO qsfit_comp_balmer_continuum, x, logT, logTau, fwhm, bac, bac_at_edge
+  c = gpc()
+  ryd = c.r_inf/c.ev                    ;; eV
+  ryd = c.c / (c.r_inf / c.h) * 1.d8    ;; Angstrom
+  edge = ryd*4.                         ;; Balmer edge
+  
+  Temp = 10.^logT
+  tau  = 10.^logTau
+  
+  xx = gloggen(912, 4000, 500) ;; Angstrom
+  l = xx*1.e-8                 ;; wavelengths in cm
+  
+  ;; Planck function
+  b = 2 * c.h * c.c^2.d / (l^5.d)
+  exp = DOUBLE(c.h*c.c / (l * c.k * Temp))
+  IF (gsearch(exp LT 80, i)) THEN $
+     b[i] /= (EXP(exp[i]) - 1.d)
+  IF (gsearch(exp GE 80, i)) THEN $
+     b[i] /= EXP(exp[i])
+  
+  ;; Take into account optical depth
+  bac = b * (1.d - EXP(-(tau * (xx/edge)^3.d)))
+  bac[WHERE(xx GE edge)] = 0.
+  bac /= MAX(bac)
+  
+  ;;Broadening
+  s = (fwhm / 3.e5) * ((xx[1]+xx[0])/2.) / 2.35 / (xx[1]-xx[0])
+  bac = CONVOL(bac, GAUSSIAN_FUNCTION(s, width=s*6), /edge_truncate, /center)
+  
+  ;; Normalize Balmer continuum at 3000A
+  bac /= INTERPOL(bac, xx, 3000.)
+  bac_at_edge = INTERPOL(bac, xx, edge)
+  bac = INTERPOL(bac, xx, x)
+END
 
 
 ;=====================================================================
@@ -254,144 +289,126 @@ PRO qsfit_comp_balmer_init, comp
   ON_ERROR, !glib.on_error
   COMMON COM_qsfit_comp_balmer, hol_x, hol, curr, save_bac, bac, bac_at_edge
 
-  firstTime = 0b
-  IF (gn(hol) EQ 0) THEN $
-     firstTime = 1b
+  comp.par.norm.val       = 0.1
+  comp.par.norm.limits    = [0, 0.5]
 
-  IF (firstTime) THEN $
-     qsfit_comp_balmer_hol_prepare, hol_x, hol
+  comp.par.ratio.val      = 1
+  comp.par.ratio.limits   = [0.3, 1]
 
-  comp.norm.val       = 0.1
-  comp.norm.limits    = [0, 0.5]
+  comp.par.logT.val       = ALOG10(15000.)
+  comp.par.logT.fixed     = 1
 
-  comp.ratio.val      = 1
-  comp.ratio.limits   = [0.3, 1]
-
-  comp.logT.val       = ALOG10(15000.)
-  comp.logT.fixed     = 1
-
-  comp.logNe.val      = 9
-  comp.logNe.fixed    = 1 ;this is degenerate with normalization, hence it should be fixed
+  comp.par.logNe.val      = 9
+  comp.par.logNe.fixed    = 1 ;this is degenerate with normalization, hence it should be fixed
 
   ;;In the range 0..1 this parameter provide the most sensible changes
   ;;in the range 2000-3645.A.  At logTau<0 this parameter become
   ;;completely degenerate with normalization.  At logTau>1 the black
   ;;body spectrum is unaffected in the range 2000-3645.
-  comp.logTau.val     = 0
-  comp.logTau.limits  = [0, 1]
-  comp.logTau.fixed   = 1 ;;highly correlated with normalization
-  comp.logT.step      = 0.1
+  comp.par.logTau.val     = 0
+  comp.par.logTau.limits  = [0, 1]
+  comp.par.logTau.fixed   = 1 ;;highly correlated with normalization
+  comp.par.logT.step      = 0.1
 
-  comp.fwhm.val       = 5040.8
-  comp.fwhm.fixed     = 1
+  comp.par.fwhm.val       = 5040.8
+  comp.par.fwhm.fixed     = 1
 
-  IF (firstTime) THEN BEGIN
-     ;; To allow significant performance improvement drop data in
-     ;; templates corresponding to unused values of logT/logNe/fwhm.
-     IF (comp.logT.fixed) THEN BEGIN
-        dummy = MIN(ABS(hol.logT - comp.logT.val), i)
-        i = WHERE(hol.logT EQ hol[i[0]].logT)
-        hol = hol[i]
-     ENDIF $
-     ELSE BEGIN
-        gdist, hol.logT, tmp
-        comp.logT.step   = tmp[1] - tmp[0]
-        comp.logT.limits = gminmax(hol.logT)
-     ENDELSE
-
-     IF (comp.logNe.fixed) THEN BEGIN
-        dummy = MIN(ABS(hol.logNe - comp.logNe.val), i)
-        i = WHERE(hol.logNe EQ hol[i[0]].logNe)
-        hol = hol[i]
-     ENDIF $
-     ELSE BEGIN
-        gdist, hol.logNe, tmp
-        comp.logNe.step   = tmp[1] - tmp[0]
-        comp.logNe.limits = gminmax(hol.logNe)
-     ENDELSE
-
-     IF (comp.fwhm.fixed) THEN BEGIN
-        dummy = MIN(ABS(hol.fwhm - comp.fwhm.val), i)
-        i = WHERE(hol.fwhm EQ hol[i[0]].fwhm)
-        hol = hol[i]
-     ENDIF $
-     ELSE BEGIN
-        gdist, hol.fwhm, tmp
-        comp.fwhm.step   = tmp[1] - tmp[0]
-        comp.fwhm.limits = gminmax(hol.fwhm)
-     ENDELSE
-
-     save_bac = 0b
-     IF (comp.logT.fixed    AND  $
-         comp.logTau.fixed  AND  $
-         comp.fwhm.fixed)   THEN $
-            save_bac = 1b
-  ENDIF
-
-  curr = []
-  bac = []
+  comp.par.cont3000.val   = 1
+  comp.par.cont3000.fixed = 1
+  comp.par.cont3000.tied  = 'qsfit_comp_sbpowerlaw_l3000()'
 END
 
 
+FUNCTION qsfit_comp_balmer_cdata, comp, x, cdata
+  IF (gn(cdata) GT 0) THEN RETURN, cdata
 
-FUNCTION qsfit_comp_balmer, x, norm, ratio, logT, logNe, logTau, fwhm
+  qsfit_comp_balmer_hol_prepare, hol_x, hol
+
+  ;; To allow significant performance improvement drop data in
+  ;; templates corresponding to unused values of logT/logNe/fwhm.
+  IF (comp.par.logT.fixed) THEN BEGIN
+     dummy = MIN(ABS(hol.logT - comp.par.logT.val), i)
+     i = WHERE(hol.logT EQ hol[i[0]].logT)
+     hol = hol[i]
+  ENDIF $
+  ELSE BEGIN
+     gdist, hol.logT, tmp
+     comp.par.logT.step   = tmp[1] - tmp[0]
+     comp.par.logT.limits = gminmax(hol.logT)
+  ENDELSE
+
+  IF (comp.par.logNe.fixed) THEN BEGIN
+     dummy = MIN(ABS(hol.logNe - comp.par.logNe.val), i)
+     i = WHERE(hol.logNe EQ hol[i[0]].logNe)
+     hol = hol[i]
+  ENDIF $
+  ELSE BEGIN
+     gdist, hol.logNe, tmp
+     comp.par.logNe.step   = tmp[1] - tmp[0]
+     comp.par.logNe.limits = gminmax(hol.logNe)
+  ENDELSE
+
+  IF (comp.par.fwhm.fixed) THEN BEGIN
+     dummy = MIN(ABS(hol.fwhm - comp.par.fwhm.val), i)
+     i = WHERE(hol.fwhm EQ hol[i[0]].fwhm)
+     hol = hol[i]
+  ENDIF $
+  ELSE BEGIN
+     gdist, hol.fwhm, tmp
+     comp.par.fwhm.step   = tmp[1] - tmp[0]
+     comp.par.fwhm.limits = gminmax(hol.fwhm)
+  ENDELSE
+  
+  PRINT, 'Interpolation of high order Balmer lines template...'
+  hol_y = FLTARR(gn(x), gn(hol))
+  FOR i=0, gn(hol)-1 DO $
+     hol_y[*,i] = INTERPOL(hol[i].y, hol_x, x)
+
+  IF (comp.par.logT.fixed    AND  $
+      comp.par.logTau.fixed  AND  $
+      comp.par.fwhm.fixed)   THEN BEGIN
+     qsfit_comp_balmer_continuum, x, comp.par.logT.val, comp.par.logTau.val, comp.par.fwhm.val, bac, bac_at_edge
+  ENDIF $
+  ELSE BEGIN
+     bac = -1
+     bac_at_edge = -1
+  ENDELSE
+
+  cdata = {hol: hol, hol_y: hol_y, bac: bac, bac_at_edge: bac_at_edge}
+  RETURN, PTR_NEW(cdata)
+END
+
+
+FUNCTION qsfit_comp_balmer, x, norm, ratio, logT, logNe, logTau, fwhm, cont3000, cdata=cdata
   COMPILE_OPT IDL2
   ON_ERROR, !glib.on_error
   COMMON COM_qsfit_comp_balmer
 
-  IF (gn(curr) EQ 0) THEN BEGIN
-     PRINT, 'Interpolation of high order Balmer lines template...'
-     curr = FLTARR(gn(x), gn(hol))
-     FOR i=0, gn(hol)-1 DO $
-        curr[*,i] = INTERPOL(hol[i].y, hol_x, x)
-  ENDIF
-
   ;;Find best HOL template
-  dummy = MIN(ABS(hol.logT - logT)     , i)  &   i = WHERE(hol.logT     EQ hol[i].logT)
-  dummy = MIN(ABS(hol[i].logNe - logNe), j)  &   j = WHERE(hol[i].logNe EQ hol[i[j]].logNe)  &   i = i[j]
-  dummy = MIN(ABS(hol[i].fwhm  - fwhm) , j)  &   j = WHERE(hol[i].fwhm  EQ hol[i[j]].fwhm)   &   i = i[j]
-  gassert, gn(i) EQ 1
-  iHOL = TEMPORARY(i)
+  IF (gn((*cdata).hol) EQ 1) THEN $
+     ihol = 0 $
+  ELSE BEGIN
+     STOP ;TODO
+     i = INDGEN(gn(hol))
+     dummy = MIN(ABS(hol[i].logT  - logT) , j)  &   k = WHERE(hol[i].logT  EQ hol[i[j]].logT)
+     dummy = MIN(ABS(hol[i].logNe - logNe), j)  &   k = WHERE(hol[i].logNe EQ hol[i[j]].logNe)  &   i = i[k]
+     dummy = MIN(ABS(hol[i].fwhm  - fwhm) , j)  &   k = WHERE(hol[i].fwhm  EQ hol[i[j]].fwhm)   &   i = i[k]
+     gassert, gn(i) EQ 1
+     iHOL = TEMPORARY(i)
+  ENDELSE
+  
 
-  IF ((gn(bac) EQ 0)  OR  ~save_bac) THEN BEGIN
-     c = gpc()
-     ryd = c.r_inf/c.ev                 ;; eV
-     ryd = c.c / (c.r_inf / c.h) * 1.d8 ;; Angstrom
-     edge = ryd*4.                      ;; Balmer edge
-
-     Temp = 10.^logT
-     tau  = 10.^logTau
-
-     xx = gloggen(912, 4000, 500) ;; Angstrom
-     l = xx*1.e-8                 ;; wavelengths in cm
-
-     ;; Planck function
-     b = 2 * c.h * c.c^2.d / (l^5.d)
-     exp = DOUBLE(c.h*c.c / (l * c.k * Temp))
-     IF (gsearch(exp LT 80, i)) THEN $
-        b[i] /= (EXP(exp[i]) - 1.d)
-     IF (gsearch(exp GE 80, i)) THEN $
-        b[i] /= EXP(exp[i])
-
-     ;; Take into account optical depth
-     bac = b * (1.d - EXP(-(tau * (xx/edge)^3.d)))
-     bac[WHERE(xx GE edge)] = 0.
-     bac /= MAX(bac)
-
-     ;;Broadening
-     s = (fwhm / 3.e5) * ((xx[1]+xx[0])/2.) / 2.35 / (xx[1]-xx[0])
-     bac = CONVOL(bac, GAUSSIAN_FUNCTION(s, width=s*6), /edge_truncate, /center)
-
-     ;; Normalize Balmer continuum at 3000A
-     bac /= INTERPOL(bac, xx, 3000.)
-     bac_at_edge = INTERPOL(bac, xx, edge)
-     bac = INTERPOL(bac, xx, x)
-  ENDIF
+  IF ((*cdata).bac_at_edge GT 0) THEN BEGIN
+     bac = (*cdata).bac
+     bac_at_edge = (*cdata).bac_at_edge
+  ENDIF ELSE BEGIN
+     qsfit_comp_balmer_continuum, x, logT, logTau, fwhm, bac, bac_at_edge
+  ENDELSE
 
   ;;PLOT , x, bac
   ;;OPLOT, x, ratio * bac_at_edge * curr[*,iHOL], col=255
 
-  RETURN, norm * qsfit_comp_sbpowerlaw_l3000() * (bac + ratio * bac_at_edge * curr[*,iHOL])
+  RETURN, norm * cont3000 * (bac + ratio * bac_at_edge * (*cdata).hol_y[*,ihol])
 END
 
 
@@ -399,17 +416,17 @@ END
 
 
 PRO qsfit_comp_balmer_test
-  qsfit_comp_balmer_hol_prepare, hol_x, hol
-  comp = gfit_component('qsfit_comp_sbpowerlaw')
-  comp = gfit_component('qsfit_comp_balmer')
-
   x = ggen(1000, 4100, 1000)
+
+  comp = gfit_component('qsfit_comp_balmer')
+  cdata = PTR_NEW(qsfit_comp_balmer_cdata(comp, x))
+
+  y1 = qsfit_comp_balmer(x, 1, 1  , ALOG10(15000), 9, 0, 5000, cdata=cdata)
+  y2 = qsfit_comp_balmer(x, 1, 0.5, ALOG10(15000), 9, 0, 5000, cdata=cdata)
+
   ggp_clear
   ggp_cmd, 'set key left', $
            xtit='Wavelength [A]', ytit='Lum. density [arb.units]'
-
-  y1 = qsfit_comp_balmer(x, 1, 1  , ALOG10(15000), 9, 0, 5000)
-  y2 = qsfit_comp_balmer(x, 1, 0.5, ALOG10(15000), 9, 0, 5000)
   ggp_data, x, y1, pl='w l tit "ratio=1" lw 2 lc rgb "red"'
   ggp_data, x, y2, pl='w l tit "ratio=0.5" lw 2 lc rgb "blue"'
   ggp_data, 3645.07*[1,1], [0, 1.4], pl='w l tit "Balmer edge" dt 4 lc rgb "black"'

@@ -1,5 +1,5 @@
 ; *******************************************************************
-; Copyright (C) 2016-2017 Giorgio Calderone
+; Copyright (C) 2016-2018 Giorgio Calderone
 ;
 ; This program is free software; you can redistribute it and/or
 ; modify it under the terms of the GNU General Public icense
@@ -45,41 +45,43 @@ PRO gfit_ex5
   gfit_init
 
   ;;Add data into gfit
-  gfit_add_data, x1, y1, e1, label='det1'
-  gfit_add_data, x2, y2, e2, label='det2'
+  gfit_add_data, x1, y1, e1
+  gfit_add_obs
+  gfit_add_data, x2, y2, e2
 
   ;;Add components to model
-  gfit_add_comp, type='gfit_comp_simplepar', 'Continuum'
-  gfit_add_comp, type='gfit_comp_Gauss'    ,['line1', 'line2'] ;;add two component at once
+  gfit_add_comp, 'Continuum', 'gfit_comp_simplepar'
+  gfit_add_comp, 'line1', 'gfit_comp_Gauss'
+  gfit_add_comp, 'line2', 'gfit_comp_Gauss'
 
   ;;A (very fast) way to add several component of the same kind is to
-  ;;prepare the component structure usign "gfit_component"...
+  ;;prepare the component structure using "gfit_component"...
   comp = gfit_component('gfit_comp_simplepar')
 
   ;;...and add them directly
-  comp.par.val   = 1
-  gfit_add_comp, type=comp, 'calib_scale'
+  comp.par.par.val   = 1
+  gfit_add_comp, 'calib_scale', comp
 
-  comp.par.val   = 0
-  gfit_add_comp, type=comp, 'calib_offset'
+  comp.par.par.val   = 0
+  gfit_add_comp, 'calib_offset', comp
 
   ;;Prepare model expression (one for each detector)
-  gfit.expr.det1.model = 'continuum + line1 + line2'
-  gfit.expr.det2.model = 'calib_offset + calib_scale * (continuum + line1 + line2)'
+  gfit.obs.(0).expr = 'continuum + line1 + line2'
+  gfit.obs.(1).expr = 'calib_offset + calib_scale * (continuum + line1 + line2)'
 
   ;;Secondary expressions to be plotted (these are automatically added
   ;;for both detectors)
-  gfit_add_expr, 'plot_line1', 'continuum + line1'
-  gfit_add_expr, 'plot_line2', 'continuum + line2'
+  gfit_add_aux, 'plot_line1', 'continuum + line1'
+  gfit_add_aux, 'plot_line2', 'continuum + line2'
 
   ;;Guess parameters
-  gfit.comp.continuum.par.val  = 2.
-  gfit.comp.line1.norm.val     = 0.5
-  gfit.comp.line1.center.val   = 0.1
-  gfit.comp.line1.sigma.val    = 0.5
-  gfit.comp.line2.norm.val     = 0.5
-  gfit.comp.line2.center.val   = 0.9
-  gfit.comp.line2.sigma.val    = 0.2
+  gfit.comp.continuum.par.par.val  = 2.
+  gfit.comp.line1.par.norm.val     = 0.5
+  gfit.comp.line1.par.center.val   = 0.1
+  gfit.comp.line1.par.sigma.val    = 0.5
+  gfit.comp.line2.par.norm.val     = 0.5
+  gfit.comp.line2.par.center.val   = 0.9
+  gfit.comp.line2.par.sigma.val    = 0.2
 
   ;;Run fit
   gfit_compile
@@ -87,23 +89,8 @@ PRO gfit_ex5
   gfit_report
 
   ;;Plot results
-  gfit_plot, 0  &  ggp
-  gfit_plot, 1  &  ggp
-  gfit_plot_resid, 0  &  ggp
-  gfit_plot_resid, 1  &  ggp
-
-
-  ;;The lines plotted for DET2 do not account for calibration
-  ;;coefficients.  Add two more expressions (only for DET2) to plot
-  ;;correct lines.  Note that we need to recompile the model.
-  gfit_add_expr, dataset='det2', 'calib_line1', 'calib_offset + calib_scale * (continuum + line1)'
-  gfit_add_expr, dataset='det2', 'calib_line2', 'calib_offset + calib_scale * (continuum + line2)'
-  gfit_compile
-  gfit_report
-
-  ;;Plot results
-  gfit_plot, 0  &  ggp
-  gfit_plot, 1  &  ggp
-  gfit_plot_resid, 0  &  ggp
-  gfit_plot_resid, 1  &  ggp
+  gfit_plot, obs=0  &  ggp
+  gfit_plot, obs=1  &  ggp
+  gfit_plot_resid, obs=0  &  ggp
+  gfit_plot_resid, obs=1  &  ggp
 END

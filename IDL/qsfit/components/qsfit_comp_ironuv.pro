@@ -1,5 +1,5 @@
 ; *******************************************************************
-; Copyright (C) 2016-2017 Giorgio Calderone
+; Copyright (C) 2016-2018 Giorgio Calderone
 ;
 ; This program is free software; you can redistribute it and/or
 ; modify it under the terms of the GNU General Public icense
@@ -167,10 +167,10 @@ END
 PRO qsfit_comp_ironuv_init, comp
   COMPILE_OPT IDL2
   ON_ERROR, !glib.on_error
-  COMMON COM_qsfit_comp_ironuv, templ, cur
+  COMMON COM_qsfit_comp_ironuv, templ
 
   IF (gn(templ) EQ 0) THEN BEGIN
-     path = FILE_DIRNAME(ROUTINE_FILEPATH('qsfit_comp_ironuv_init')) + PATH_SEP()
+     path = FILE_DIRNAME(ROUTINE_FILEPATH('qsfit_comp_ironuv_prepare', /IS_FUNCTION)) + PATH_SEP()
      file = path + 'qsfit_comp_ironuv.dat'
      IF (gfexists(file)) THEN $
         RESTORE, file $
@@ -179,40 +179,64 @@ PRO qsfit_comp_ironuv_init, comp
         SAVE, file=file, /compress, templ
      ENDELSE
   ENDIF
-  cur = []
 
-  comp.ew.val = 100
-  comp.ew.limits[0] = 0
+  comp.par.ew.val = 100
+  comp.par.ew.limits[0] = 0
 
-  comp.fwhm.val    = 3000
-  comp.fwhm.limits = gminmax(templ.fwhm)
-  comp.fwhm.step   = 200
+  comp.par.fwhm.val    = 3000
+  comp.par.fwhm.limits = gminmax(templ.fwhm)
+  comp.par.fwhm.step   = 200
+
+  comp.par.cont2350.val   = 1
+  comp.par.cont2350.fixed = 1
+  comp.par.cont2350.tied  = 'qsfit_comp_sbpowerlaw_l2350()'
 END
 
 
+FUNCTION qsfit_comp_ironuv_opt, comp
+  opt = {fwhmFixed: gnan()}
+  RETURN, opt
+END
 
-FUNCTION qsfit_comp_ironuv, x, ew, fwhm
+
+FUNCTION qsfit_comp_ironuv_cdata, comp, x, cdata
   COMPILE_OPT IDL2
   ON_ERROR, !glib.on_error
-  COMMON COM_qsfit_comp_ironuv
+  COMMON COM_qsfit_comp_ironuv, templ
+  IF (gn(cdata) GT 0) THEN RETURN, cdata
+
+  ifwhm = LINDGEN(gn(templ.fwhm))
+  IF (FINITE(comp.opt.fwhmFixed)) THEN $
+     dummy = MIN(ABS(comp.opt.fwhmFixed - templ.fwhm), ifwhm)
 
   ;;Initialize templates using current X values
-  IF (gn(cur) EQ 0) THEN BEGIN
-     gprint, 'Interpolation of Vestergaard and Wilkes (2001) UV iron template...'
-     cur = FLTARR(gn(x), gn(templ.fwhm))
-     FOR i=0, gn(templ.fwhm)-1 DO BEGIN
-        cur[*, i] = INTERPOL(REFORM(templ.y[*,i]), templ.x, x)
-     ENDFOR
+  gprint, 'Interpolation of Vestergaard and Wilkes (2001) UV iron template...'
+  yy = FLTARR(gn(x), gn(ifwhm))
+  FOR i=0, gn(ifwhm)-1 DO $
+     yy[*, i] = INTERPOL(REFORM(templ.y[*,ifwhm[i]]), templ.x, x)
 
-     ;;For high values of FWHM the template may not go to zero and the
-     ;;interpolation may produce negative value.  Ensure we have
-     ;;positive values.
-     cur = (cur > 0)
+  ;;For high values of FWHM the template may not go to zero and the
+  ;;interpolation may produce negative value.  Ensure we have positive
+  ;;values.
+  yy = (yy > 0)
+
+  cdata = {fwhm: templ.fwhm[ifwhm], y: yy}
+
+  RETURN, PTR_NEW(cdata)
+END
+
+FUNCTION qsfit_comp_ironuv, x, ew, fwhm, cont2350, cdata=cdata, opt=opt
+  COMPILE_OPT IDL2
+  ON_ERROR, !glib.on_error
+
+  IF (FINITE(opt.fwhmFixed)) THEN BEGIN
+     IF (opt.fwhmFixed NE fwhm) THEN $
+        MESSAGE, 'FWHM value should be fixed to ' + gn2s(opt.fwhmFixed), ' while it is ' + gn2s(fwhm)
   ENDIF
 
   ;;Search for the template with the closest value of FWHM
-  dummy = MIN(ABS(fwhm - templ.fwhm), i)
+  dummy = MIN(ABS(fwhm - (*cdata).fwhm), i)
 
-  ret = ew * qsfit_comp_sbpowerlaw_l2350() * REFORM(cur[*, i])
+  ret = ew * cont2350 * REFORM((*cdata).y[*, i])
   RETURN, ret
 END

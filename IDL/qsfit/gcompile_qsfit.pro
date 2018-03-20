@@ -41,7 +41,6 @@ PRO gcompile_qsfit, path
 
   ;;Forward declaration of functions
   FORWARD_FUNCTION qsfit_comp_emline
-  FORWARD_FUNCTION qsfit_comp_galaxytemplate_id
   FORWARD_FUNCTION qsfit_comp_galaxytemplate
   FORWARD_FUNCTION qsfit_comp_ironoptical
   FORWARD_FUNCTION qsfit_comp_ironuv_prepare
@@ -59,6 +58,7 @@ PRO gcompile_qsfit, path
   FORWARD_FUNCTION qsfit_iron_quality_meaning
   FORWARD_FUNCTION qsfit_galaxy_quality_meaning
   FORWARD_FUNCTION qsfit_flatten_results
+  FORWARD_FUNCTION qsfit_input
   FORWARD_FUNCTION qsfit
 
   ;;List of .pro files to be compiled

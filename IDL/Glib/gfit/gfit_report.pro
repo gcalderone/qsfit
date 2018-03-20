@@ -1,5 +1,5 @@
 ; *******************************************************************
-; Copyright (C) 2016-2017 Giorgio Calderone
+; Copyright (C) 2016-2018 Giorgio Calderone
 ;
 ; This program is free software; you can redistribute it and/or
 ; modify it under the terms of the GNU General Public icense
@@ -40,43 +40,35 @@ PRO gfit_report, ALL=all
   gprint, '====== GFIT REPORT (Process id:' + gn2s(gfit.opt.pid) + ') ======'
   gprint
   gprint, CFORMAT='%14s :  %s\n', 'Data type', gfit.opt.data_type
-  gprint, CFORMAT='%14s :  %s', 'Data sets'
-  
-  tmp = []
-  FOR i=0, gfit.data.nn-1 DO $
-     tmp = [tmp, STRUPCASE(gfit.data.(i).label) + ' (' + gn2s(gn(gfit.data.(i).y)) + ')']
-  gprint, STRJOIN(tmp, ', ')
-
   gprint
-  gprint, CFORMAT='%14s :  %d\n', 'Components', gfit.comp.nn
-
-  FOR i=0, gfit.comp.nn-1 DO BEGIN
+  gprint, CFORMAT='%14s :  %d\n', 'Components', N_TAGS(gfit.comp)
+  FOR i=0, N_TAGS(gfit.comp)-1 DO BEGIN
      gprint, CFORMAT='%14s :  %-30s   %s\n' $
-            , gfit.comp.(i).name, gfit.comp.(i).funcName, (gfit.comp.(i).enabled ? '' : 'DISABLED')
+             , (TAG_NAMES(gfit.comp))[i], gfit.comp.(i).funcName, (gfit.comp.(i).enabled ? '' : 'DISABLED')
+  ENDFOR
+
+  ndata = 0l
+  gprint
+  gprint, CFORMAT='%14s :  %s\n', 'Observation:', 'Expressions'
+  FOR iobs=0, N_TAGS(gfit.obs)-1 DO BEGIN
+     obs = gfit.obs.(iobs)
+     gprint, CFORMAT='%14d :  %s\n', iobs, obs.expr
+     FOR iaux=0, N_TAGS(obs.aux)-1 DO $
+        gprint, CFORMAT='%14s :  %s\n', (TAG_NAMES(obs.aux))[iaux], obs.aux.(iaux).expr
+     ndata += gn(obs.eval.x)
   ENDFOR
 
   gprint
-  gprint, CFORMAT='%14s :\n', 'Expressions'  
-  ;;Secondary expressions
-  FOR i=0, gfit.data.nn-1 DO BEGIN
-     gprint, CFORMAT='%14s : MODEL = %s\n', (TAG_NAMES(gfit.expr))[i], gfit.expr.(i).model
+  par = gfit_get_par()
+  IF (gn(par) EQ 0) THEN RETURN
 
-     FOR j=1, N_TAGS(gfit.expr.(i))-1 DO $
-        gprint, CFORMAT='%14s   %s = %s\n', '', (TAG_NAMES(gfit.expr.(i)))[j], gfit.expr.(i).(j)
-  ENDFOR
-
-
-  gprint
-  gprint, 'List of model parameters:'
-
-  par = gfit_get_par(compenabled)
-
-  IF (~KEYWORD_SET(all)) THEN BEGIN
-     par = par[WHERE(compenabled)]
-     par = par[WHERE(~par.fixed)]
-     par = par[WHERE(par.tied EQ '')]
-  ENDIF
-
+  IF (KEYWORD_SET(all)) THEN $
+     gprint, 'List of ALL parameters:' $
+  ELSE BEGIN
+     IF (~gsearch(par.fixed EQ 0  AND  par.tied EQ '', i)) THEN RETURN
+     par = par[i]
+     gprint, 'List of FREE parameters:'
+  ENDELSE
   tmp  = gstru_sub(par, drop=['limited', 'step', 'fixed'])
   tmp2 = REPLICATE(CREATE_STRUCT(tmp[0], 'fixed', '', 'step', ''), gn(tmp))
   STRUCT_ASSIGN, par, tmp2
@@ -90,14 +82,10 @@ PRO gfit_report, ALL=all
      tmp2[i].step = gn2s(par[i].step, nan=' ')
   gps, tmp2, row=KEYWORD_SET(all)
 
-  ndata = 0l
-  FOR i=0, gfit.data.nn-1 DO $
-     ndata += gn(gfit.cmp.(i))
   gprint
   gprint, CFORMAT='%14s :  %-10.3g   red.: %-5.2g\n' $
          , 'Fit stat.', gfit.res.fit_stat, gfit.res.fit_stat / ndata
   gprint, CFORMAT='%14s :  %d\n', 'N data', ndata
-
   gprint
   gprint, CFORMAT='%14s :  %-10.3g   red.: %-5.2g   Prob(worse fit): %-10.3g\n' $
          , 'Test stat.', gfit.res.test_stat, gfit.res.test_stat / gfit.res.test_dof, gfit.res.test_prob
@@ -105,5 +93,13 @@ PRO gfit_report, ALL=all
   gprint
   gprint, CFORMAT='%14s :  %-10d\n'  , 'MPFIT status' , gfit.res.mpfit_status
   gprint, CFORMAT='%14s :  %-10.3g\n', 'Elapsed time' , gfit.res.elapsed_time
+
+  ;gprint, CFORMAT='%14s : %-10.6g   Ndata: %7d   DOF: %d\n' $
+  ;       , 'Fit stat.', gfit.res.fit_stat, ndata, gfit.res.test_dof
+  ;gprint, CFORMAT='%14s : %-10.6g   Red. : %-7.3g   Prob.: %-10.4g\n' $
+  ;       , 'Test stat.', gfit.res.test_stat, gfit.res.test_stat / gfit.res.test_dof, gfit.res.test_prob
+  ;gprint
+  ;gprint, CFORMAT='%14s : %-10d\n'  , 'MPFIT status' , gfit.res.mpfit_status
+  ;gprint, CFORMAT='%14s :d  %-10.3g\n', 'Elapsed time' , gfit.res.elapsed_time
   gprint
 END

@@ -1,5 +1,5 @@
 ; *******************************************************************
-; Copyright (C) 2016-2017 Giorgio Calderone
+; Copyright (C) 2016-2018 Giorgio Calderone
 ;
 ; This program is free software; you can redistribute it and/or
 ; modify it under the terms of the GNU General Public icense
@@ -33,8 +33,8 @@ PRO gfit_restore, saved
   COMMON GFIT
 
   ;;Collect component names
-  comp = STRARR(saved.comp.nn)
-  FOR i=0, saved.comp.nn-1 DO  comp[i] = saved.comp.(i).funcName
+  comp = STRARR(N_TAGS(saved.comp))
+  FOR i=0, N_TAGS(saved.comp)-1 DO  comp[i] = saved.comp.(i).funcName
   comp = comp[SORT(comp)]
   comp = comp[UNIQ(comp)]
   

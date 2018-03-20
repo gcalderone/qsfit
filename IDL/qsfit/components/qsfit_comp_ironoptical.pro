@@ -1,5 +1,5 @@
 ; *******************************************************************
-; Copyright (C) 2016-2017 Giorgio Calderone
+; Copyright (C) 2016-2018 Giorgio Calderone
 ;
 ; This program is free software; you can redistribute it and/or
 ; modify it under the terms of the GNU General Public icense
@@ -159,13 +159,14 @@ PRO qsfit_comp_ironoptical_prepare, templ_br, templ_na
 END
 
 
+
 PRO qsfit_comp_ironoptical_init, comp
   COMPILE_OPT IDL2
   ON_ERROR, !glib.on_error
-  COMMON COM_qsfit_comp_ironoptical, templ_br, templ_na, cur_br, cur_na
+  COMMON COM_qsfit_comp_ironoptical, templ_br, templ_na
 
-  path = FILE_DIRNAME(ROUTINE_FILEPATH('qsfit_comp_ironoptical_init')) + PATH_SEP()
-  IF (gn(templ) EQ 0) THEN BEGIN
+  path = FILE_DIRNAME(ROUTINE_FILEPATH('qsfit_comp_ironoptical_prepare')) + PATH_SEP()
+  IF (gn(templ_br) EQ 0) THEN BEGIN
      file = path + 'qsfit_comp_ironoptical.dat'
      IF (gfexists(file)) THEN $
         RESTORE, file $
@@ -177,47 +178,79 @@ PRO qsfit_comp_ironoptical_init, comp
   cur_br = []
   cur_na = []
 
-  comp.norm_br.val       = 100
-  comp.norm_br.limits[0] = 0
+  comp.par.norm_br.val       = 100
+  comp.par.norm_br.limits[0] = 0
 
-  comp.norm_na.val       = 100
-  comp.norm_na.limits[0] = 0
+  comp.par.norm_na.val       = 100
+  comp.par.norm_na.limits[0] = 0
 
-  comp.fwhm_br.val    = 3000
-  comp.fwhm_br.limits = gminmax(templ_br.fwhm)
-  comp.fwhm_br.step   = templ_br.fwhm[1] - templ_br.fwhm[0]
+  comp.par.fwhm_br.val    = 3000
+  comp.par.fwhm_br.limits = gminmax(templ_br.fwhm)
+  comp.par.fwhm_br.step   = templ_br.fwhm[1] - templ_br.fwhm[0]
   
-  comp.fwhm_na.val    = 500
-  comp.fwhm_na.limits = gminmax(templ_na.fwhm)
-  comp.fwhm_na.step   = templ_na.fwhm[1] - templ_na.fwhm[0]
+  comp.par.fwhm_na.val    = 500
+  comp.par.fwhm_na.limits = gminmax(templ_na.fwhm)
+  comp.par.fwhm_na.step   = templ_na.fwhm[1] - templ_na.fwhm[0]
 END
 
 
-FUNCTION qsfit_comp_ironoptical, x, norm_br, fwhm_br, norm_na, fwhm_na
+FUNCTION qsfit_comp_ironoptical_opt, comp
+  opt = {fwhmFixed_na: gnan(), fwhmFixed_br: gnan()}
+  RETURN, opt
+END
+
+
+FUNCTION qsfit_comp_ironoptical_cdata, comp, x, cdata
   COMPILE_OPT IDL2
   ON_ERROR, !glib.on_error
-  COMMON COM_qsfit_comp_ironoptical
+  COMMON COM_qsfit_comp_ironoptical, templ_br, templ_na
+  IF (gn(cdata) GT 0) THEN RETURN, cdata
+
+  ifwhm_br = LINDGEN(gn(templ_br.fwhm))
+  IF (FINITE(comp.opt.fwhmFixed_br)) THEN $
+     dummy = MIN(ABS(comp.opt.fwhmFixed_br - templ_br.fwhm), ifwhm_br)
+
+  ifwhm_na = LINDGEN(gn(templ_na.fwhm))
+  IF (FINITE(comp.opt.fwhmFixed_na)) THEN $
+     dummy = MIN(ABS(comp.opt.fwhmFixed_na - templ_na.fwhm), ifwhm_na)
+
 
   ;;Initialize templates using current X values
-  IF (gn(cur_br) EQ 0) THEN BEGIN
-     gprint, 'Interpolation of Veron-Cetty (2004) optical iron template...'
+  gprint, 'Interpolation of Veron-Cetty (2004) optical iron template...' 
+  br_yy = FLTARR(gn(x), gn(ifwhm_br))
+  na_yy = FLTARR(gn(x), gn(ifwhm_na))
 
-     cur_br = FLTARR(gn(x), gn(templ_br.fwhm))
-     cur_na = FLTARR(gn(x), gn(templ_na.fwhm))
+  FOR i=0, gn(ifwhm_br)-1 DO br_yy[*,i] = INTERPOL(REFORM(templ_br.y[*,ifwhm_br[i]]), templ_br.x, x)
+  FOR i=0, gn(ifwhm_na)-1 DO na_yy[*,i] = INTERPOL(REFORM(templ_na.y[*,ifwhm_na[i]]), templ_na.x, x)
+  br_yy = (br_yy > 0) 
+  na_yy = (na_yy > 0) 
 
-     FOR i=0, gn(templ_br.fwhm)-1 DO cur_br[*,i] = INTERPOL(REFORM(templ_br.y[*,i]), templ_br.x, x)
-     FOR i=0, gn(templ_na.fwhm)-1 DO cur_na[*,i] = INTERPOL(REFORM(templ_na.y[*,i]), templ_na.x, x)
-     cur_br = (cur_br > 0) 
-     cur_na = (cur_na > 0) 
+  cdata = {br_fwhm: templ_br.fwhm[ifwhm_br], br_y: br_yy, $
+           na_fwhm: templ_na.fwhm[ifwhm_na], na_y: na_yy  $
+          }
+
+  RETURN, PTR_NEW(cdata)
+END
+
+FUNCTION qsfit_comp_ironoptical, x, norm_br, fwhm_br, norm_na, fwhm_na, cdata=cdata, opt=opt
+  COMPILE_OPT IDL2
+  ON_ERROR, !glib.on_error
+
+  IF (FINITE(opt.fwhmFixed_na)) THEN BEGIN
+     IF (opt.fwhmFixed_na NE fwhm_na) THEN $
+        MESSAGE, 'FWHM_NA value should be fixed to ' + gn2s(opt.fwhmFixed_na), ' while it is ' + gn2s(fwhm_na)
+  ENDIF
+  IF (FINITE(opt.fwhmFixed_br)) THEN BEGIN
+     IF (opt.fwhmFixed_br NE fwhm_br) THEN $
+        MESSAGE, 'FWHM_BR value should be fixed to ' + gn2s(opt.fwhmFixed_br), ' while it is ' + gn2s(fwhm_br)
   ENDIF
 
-
   ;;Search for the template with the closest value of FWHM
-  dummy = MIN(ABS(fwhm_br - templ_br.fwhm), ibr)
-  dummy = MIN(ABS(fwhm_na - templ_na.fwhm), ina)
+  dummy = MIN(ABS(fwhm_br - (*cdata).br_fwhm), ibr)
+  dummy = MIN(ABS(fwhm_na - (*cdata).na_fwhm), ina)
 
-  RETURN, norm_br * REFORM(cur_br[*, ibr]) + $
-          norm_na * REFORM(cur_na[*, ina])
+  RETURN, norm_br * REFORM((*cdata).br_y[*, ibr]) + $
+          norm_na * REFORM((*cdata).na_y[*, ina])
 END
 
 

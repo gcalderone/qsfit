@@ -1,5 +1,5 @@
 ; *******************************************************************
-; Copyright (C) 2016-2017 Giorgio Calderone
+; Copyright (C) 2016-2018 Giorgio Calderone
 ;
 ; This program is free software; you can redistribute it and/or
 ; modify it under the terms of the GNU General Public icense
@@ -51,14 +51,18 @@
 
 ;=====================================================================
 PRO gfit_comp_Gauss_init, comp
-  comp.norm.val  = 1
-  comp.sigma.val = 1
-  comp.sigma.limits = [1.e-4, gnan()]  ;;Lower limit should always be positive.
+  comp.par.norm.val  = 1
+  comp.par.sigma.val = 1
+  comp.par.sigma.limits = [1.e-4, gnan()]  ;;Lower limit should always be positive.
 END
 
+;=====================================================================
+FUNCTION gfit_comp_Gauss_opt, comp
+  RETURN, {normMax: 0b}
+END
 
 ;=====================================================================
-FUNCTION gfit_comp_Gauss, x, norm, center, sigma, MAX=max
+FUNCTION gfit_comp_Gauss, x, norm, center, sigma, OPT=opt
   COMPILE_OPT IDL2
   ON_ERROR, !glib.on_error
  
@@ -66,7 +70,7 @@ FUNCTION gfit_comp_Gauss, x, norm, center, sigma, MAX=max
   ret = norm * EXP(-exp)
 
   ;;Norm parameter is the integral, unless the MAX keyword is set
-  IF (~KEYWORD_SET(max)) THEN $ 
+  IF (~opt.normMax) THEN $
      ret /= SQRT(2*!PI) * sigma
 
   RETURN, ret

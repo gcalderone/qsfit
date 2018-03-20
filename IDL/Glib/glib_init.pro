@@ -1,5 +1,5 @@
 ; *******************************************************************
-; Copyright (C) 2016-2017 Giorgio Calderone
+; Copyright (C) 2016-2018 Giorgio Calderone
 ;
 ; This program is free software; you can redistribute it and/or
 ; modify it under the terms of the GNU General Public icense
@@ -36,7 +36,7 @@ PRO glib_init, path
   ;;Initialize !GLIB structure
   DEFSYSV, '!GLIB', EXISTS = exists
   IF (exists NE 1) THEN BEGIN 
-     glib = {version:    '0.7.1' $
+     glib = {version:    '0.8.0' $
              , path:     path    $
              , on_error: 2b      $
             }

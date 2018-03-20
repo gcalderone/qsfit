@@ -1,5 +1,5 @@
 ; *******************************************************************
-; Copyright (C) 2016-2017 Giorgio Calderone
+; Copyright (C) 2016-2018 Giorgio Calderone
 ;
 ; This program is free software; you can redistribute it and/or
 ; modify it under the terms of the GNU General Public icense
@@ -28,34 +28,34 @@ PRO gfit_ex4
   ;;Add data into gfit
   gfit_add_data, x, y, e
 
-
   ;;Add components to model
-  gfit_add_comp, type='gfit_comp_simplepar', 'Continuum'
-  gfit_add_comp, type='gfit_comp_Gauss'    , ['line1', 'line2'] ;;add two component at once
+  gfit_add_comp, 'Continuum', 'gfit_comp_simplepar'
+  gfit_add_comp, 'line1', 'gfit_comp_Gauss'
+  gfit_add_comp, 'line2', 'gfit_comp_Gauss'
 
   ;;Model expression
-  gfit.expr.(0).model = 'continuum + line1 + line2'
+  gfit.obs.(0).expr = 'continuum + line1 + line2'
 
   ;;Secondary expressions to be plotted
-  gfit_add_expr, 'plot_line1', 'line1'
-  gfit_add_expr, 'plot_line2', 'line2'
+  gfit_add_aux, 'plot_line1', 'line1'
+  gfit_add_aux, 'plot_line2', 'line2'
 
   ;;Guess parameters
-  gfit.comp.continuum.par.val  = 1.  
-  gfit.comp.line1.norm.val     = 0.5
-  gfit.comp.line1.center.val   = 0.1
-  gfit.comp.line1.sigma.val    = 0.5
-  gfit.comp.line2.norm.val     = 1
-  gfit.comp.line2.center.val   = 0.9
-  gfit.comp.line2.sigma.val    = 0.2
+  gfit.comp.continuum.par.par.val  = 1.  
+  gfit.comp.line1.par.norm.val     = 0.5
+  gfit.comp.line1.par.center.val   = 0.1
+  gfit.comp.line1.par.sigma.val    = 0.5
+  gfit.comp.line2.par.norm.val     = 1
+  gfit.comp.line2.par.center.val   = 0.9
+  gfit.comp.line2.par.sigma.val    = 0.2
 
   ;;Set component option
-  gfit.comp.line1.opt.max = 1
+  gfit.comp.line1.opt.normmax = 1
 
   ;;Constrain parameters
-  gfit.comp.line2.norm.fixed   = 1                  ;;Fix
-  gfit.comp.line2.center.tied  = 'line1.center + 1' ;;Tie
-  gfit.comp.line2.sigma.limits = [0.1, 1]           ;;Limits
+  gfit.comp.line2.par.norm.fixed   = 1                  ;;Fix
+  gfit.comp.line2.par.center.tied  = 'line1_center + 1' ;;Tie
+  gfit.comp.line2.par.sigma.limits = [0.1, 1]           ;;Limits
 
   ;;Run fit
   gfit_compile

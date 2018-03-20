@@ -1,5 +1,5 @@
 ; *******************************************************************
-; Copyright (C) 2016-2017 Giorgio Calderone
+; Copyright (C) 2016-2018 Giorgio Calderone
 ;
 ; This program is free software; you can redistribute it and/or
 ; modify it under the terms of the GNU General Public icense
@@ -26,22 +26,22 @@ PRO gfit_ex2
   gfit_init
 
   ;;Add data into gfit
-  gfit_add_data, x, y, e, label='MyDetector'
+  gfit_add_data, x, y, e
 
   ;;Add components to model (check user_defined_func.pro)
-  gfit_add_comp, type='user_defined_func', 'func' 
+  gfit_add_comp, 'func', 'user_defined_func'
            
   ;;Model expression
-  gfit.expr.(0).model = 'func'
+  gfit.obs.(0).expr = 'func'
 
   ;;Guess parameters
-  gfit.comp.func.continuum.val = 1.
-  gfit.comp.func.norm1.val     = 0.5
-  gfit.comp.func.center1.val   = 0.1
-  gfit.comp.func.sigma1.val    = 0.5
-  gfit.comp.func.norm2.val     = 0.5
-  gfit.comp.func.center2.val   = 0.9
-  gfit.comp.func.sigma2.val    = 0.2
+  gfit.comp.func.par.continuum.val = 1.
+  gfit.comp.func.par.norm1.val     = 0.5
+  gfit.comp.func.par.center1.val   = 0.1
+  gfit.comp.func.par.sigma1.val    = 0.5
+  gfit.comp.func.par.norm2.val     = 0.5
+  gfit.comp.func.par.center2.val   = 0.9
+  gfit.comp.func.par.sigma2.val    = 0.2
 
   ;;Run fit
   gfit_compile

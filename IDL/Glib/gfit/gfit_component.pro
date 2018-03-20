@@ -1,5 +1,5 @@
 ; *******************************************************************
-; Copyright (C) 2016-2017 Giorgio Calderone
+; Copyright (C) 2016-2018 Giorgio Calderone
 ;
 ; This program is free software; you can redistribute it and/or
 ; modify it under the terms of the GNU General Public icense
@@ -46,7 +46,6 @@
 FUNCTION gfit_component, funcName
   COMPILE_OPT IDL2
   ON_ERROR, !glib.on_error
-  COMMON GFIT_PRIVATE
 
   IF ((gn(funcName) NE 1)  OR  (gtype(funcName) NE 'STRING')) THEN $
      MESSAGE, 'FUNCNAME must be a scalar string'
@@ -57,45 +56,52 @@ FUNCTION gfit_component, funcName
   ;;Get routine parameters and keywords
   gpro_par_key, funcName, par, key
 
-  ;;First parameter is input variable
+  ;;First parameter is X, skip it
   IF (gn(par) EQ 1) THEN $
      par = [] $ 
   ELSE $
      par = par[1:*]
 
-  ;;Prepare the COMP structure
-  comp = template_comp
-  comp.name = funcName
-  comp.funcName = funcName
-  comp.npar = gn(par)
-
   ;;Collect parameter substructures
-  ppar = []
-  FOR i=0, comp.npar-1 DO BEGIN
-     ppar = CREATE_STRUCT(ppar, par[i], template_param)
+  tmp = {comp:    ''          , $    ;;Name of the component.
+         parname: ''          , $    ;;Name of the parameter.
+         val:      0.         , $    ;;Best fit value.
+         err:      0.         , $    ;;Uncertainty.
+         limited: [0b, 0b]    , $    ;;For MPFIT internal use.
+         limits:  gnan()*[1,1], $    ;;Lower and upper limits for the parameter value (NaN means no limit is applied).
+         fixed:    0b         , $    ;;Whether parametr is fixed (1) or free (0) during the fitting process.
+         tied:     ''         , $    ;;Tie expression: an IDL mathematical expression to tie this parameter with other ones Parameters are specified as COMPONENT_NAME.PARAMETER_NAME.
+         step:     0.           $    ;;The minimum step between MPFIT iterations.
+        }
+  ppar = {}
+  FOR i=0, gn(par)-1 DO BEGIN
+     ppar = CREATE_STRUCT(ppar, par[i], tmp)
      ppar.(i).parname = par[i]
   ENDFOR
+  IF (gn(ppar) EQ 0) THEN ppar = 0
 
-  ;;Join all toghether
-  comp = CREATE_STRUCT(ppar, comp)
-
-  ;;Prepare option structure.  This will be passed through the _EXTRA=
-  ;;keyword
-  opt = []
-  FOR i=0, gn(key)-1 DO BEGIN
-     success = EXECUTE('tmp = ' + funcName + '_' + key[i] + '()', 1, 1)
-     IF (~success) THEN tmp = 0
-
-     opt = CREATE_STRUCT(opt, key[i], tmp)
-  ENDFOR
-  IF (gn(key) GT 0) THEN BEGIN
-     comp.hasopt = 1
-     comp = CREATE_STRUCT(comp, 'opt', opt)
-  ENDIF
+  ;;Prepare the COMP structure
+  comp = {funcName: funcName, $    ;;Name of the component IDL function.
+          npar:     gn(par) , $    ;;Number of parameters.
+          enabled:        1b, $    ;;Enable (1) or disable (0) the component.  When the component is disabled it value is given by "disabled_val".
+          disabled_val:   0., $    ;;Value to use when the component is disabled (see "enabled").
+          par: ppar         , $
+          hasOpt: 0         , $
+          hasCdata: 0         $
+         }
 
   ;;Call user defined initialization routine
   IF (groutineExists(funcName + '_init')) THEN $
      CALL_PROCEDURE, funcName + '_init', comp
+
+  IF (groutineExists(funcName + '_opt')) THEN BEGIN
+     comp.hasOpt = 1
+     comp = gstru_insert(comp, 'opt', CALL_FUNCTION(funcName + '_opt', comp))
+  ENDIF
+
+  IF (groutineExists(funcName + '_cdata')) THEN BEGIN
+     comp.hasCdata = 1
+  ENDIF
 
   RETURN, comp
 END

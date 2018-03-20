@@ -1,5 +1,5 @@
 ; *******************************************************************
-; Copyright (C) 2016-2017 Giorgio Calderone
+; Copyright (C) 2016-2018 Giorgio Calderone
 ;
 ; This program is free software; you can redistribute it and/or
 ; modify it under the terms of the GNU General Public icense
@@ -30,80 +30,57 @@
 ;    The index of the data set to plot.  If not given the first
 ;    dataset (i.e. IDATA=0) is assumed.
 ;
-PRO gfit_plot, idata
+PRO gfit_plot, OBS=iobs
   COMPILE_OPT IDL2
   ON_ERROR, !glib.on_error
   COMMON GFIT
 
-  ;;Data available?
-  IF (gfit.data.nn EQ 0) THEN RETURN
-
   ;;Evaluate model
-  gfit_eval, expr=expr
+  gfit_run, /eval
 
-  IF (N_PARAMS() EQ 0) THEN idata = 0
-  cmp = gfit.cmp.(idata)
-
-  ;;Special case for Poisson mode
-  IF (STRUPCASE(gfit.opt.data_type) EQ 'POISSON') THEN BEGIN
-     cmp.e = SQRT(cmp.y) > 1    ;ensure uncertainties are positive
-
-     ;;Renormalize all values by the number of joined bins
-     cmp.y /= cmp.nx
-     cmp.e /= cmp.nx
-     cmp.m /= cmp.nx
-     
-     FOR j=1, N_TAGS(expr.(idata))-1 DO $
-        expr.(idata).(j) /= cmp.nx
-  ENDIF
-
+  IF (gn(iobs) EQ 0) THEN iobs = 0
+  obs = gfit.obs.(iobs)
 
   ;;MAIN PLOT =====
   ggp_clear
   ggp_cmd, 'set bars 0'
   ggp_cmd, 'set clip two'
   ggp_cmd, 'set grid'
-  ggp_cmd, 'set  title "' + gfit.plot.(idata).main.title + '"'
-  ggp_cmd, 'set xlabel "' + gfit.plot.(idata).main.xtit  + '"'
-  ggp_cmd, 'set ylabel "' + gfit.plot.(idata).main.ytit  + '"'
-  ggp_cmd, 'set xrange [' + gn2s(MIN(cmp.x)) + ':' + gn2s(MAX(cmp.x)) + ']'
+  ggp_cmd, 'set  title "' + obs.plot.title + '"'
+  ggp_cmd, 'set xlabel "' + obs.plot.xtit  + '"'
+  ggp_cmd, 'set ylabel "' + obs.plot.ytit  + '"'
+  ggp_cmd, 'set xrange [' + gn2s(MIN(obs.eval.x)) + ':' + gn2s(MAX(obs.eval.x)) + ']'
      
-  IF (gfit.plot.(idata).main.xlog) THEN ggp_cmd, 'set logscale x'
-  IF (gfit.plot.(idata).main.ylog) THEN ggp_cmd, 'set logscale y'
+  IF (obs.plot.xlog) THEN ggp_cmd, 'set logscale x'
+  IF (obs.plot.ylog) THEN ggp_cmd, 'set logscale y'
 
-  x = cmp.x
-  y = cmp.y
-  e = cmp.e
-  gfit_rebin, gfit.plot.(idata).main.rebin, x, y, e
-  ggp_data, name='data', x, y, e
-  ggp_plot, '$data  title "' + gfit.plot.(idata).data.label + '" ' + $
-            gfit.plot.(idata).data.gp
-
-  x = cmp.x
-  y = cmp.m
-  gfit_rebin, gfit.plot.(idata).main.rebin, x, y
-  ggp_data, name='model', x, y
-  IF (gfit.plot.(idata).model.gp EQ "") THEN $
-     gfit.plot.(idata).model.gp = "with line"
-  ggp_plot, '$model title "' + gfit.plot.(idata).model.label + '" ' + $
-            gfit.plot.(idata).model.gp
-
-  ;;Plot secondary expressions
-  FOR j=1, N_TAGS(expr.(idata))-1 DO BEGIN ;start from 1 since the first one is the model
-     x = cmp.x
-     y = expr.(idata).(j)
-     IF (gn(y) EQ 1) THEN y = REPLICATE(y, gn(x))
+  FOR i=0, N_TAGS(obs.data)-1 DO BEGIN
+     d = obs.data.(i)
+     IF (~d.plot.enable) THEN CONTINUE
+     IF (~gsearch(d.group GT 0, j)) THEN CONTINUE
      
-     opt = gfit.plot.(idata).(j+2)
-     IF (~opt.plot) THEN CONTINUE
-     
-     gfit_rebin, gfit.plot.(idata).main.rebin, x, y
-     ggp_data, getname=tmp, x, y
-     label = gfit.plot.(idata).(j+2).label
-     label = STRJOIN(STRSPLIT(label, '_', /extract), '\\_') ;;Escape underscore
-     IF (gfit.plot.(idata).(j+2).gp EQ "") THEN $
-        gfit.plot.(idata).(j+2).gp = "with line"
-     ggp_plot, tmp + ' title "' + label + '" ' + gfit.plot.(idata).(j+2).gp
+     x = d.x[j]
+     y = d.y[j]
+     e = d.e[j]
+     ;;gfit_rebin, obs.plot.rebin, x, y, e
+     name = 'd' + gn2s(iobs) + '_' + gn2s(i)
+     ggp_data, name=name, x, y, e
+     ggp_plot, '$' + name + ' title "' + d.plot.label + '" ' + d.plot.gp     
+  ENDFOR
+
+  ;;Plot model
+  ggp_data, name='model', obs.eval.x, obs.eval.m
+  IF (obs.plot.gp EQ "") THEN obs.plot.gp = "with line"
+  ggp_plot, '$model title "' + obs.plot.label + '" ' + obs.plot.gp
+
+  ;;Plot auxiliary expressions
+  FOR i=0, N_TAGS(obs.aux)-1 DO BEGIN
+     IF (~obs.aux.(i).plot.enable) THEN CONTINUE
+     name = 'a' + gn2s(iobs) + '_' + gn2s(i)
+     tmp = obs.eval.aux.(i)
+     IF (gn(tmp) EQ 1) THEN tmp = REPLICATE(tmp, gn(obs.eval.x))
+     ggp_data, name=name, obs.eval.x, tmp
+     ggp_plot, '$' + name + ' title "' + obs.aux.(i).plot.label + '" ' + obs.aux.(i).plot.gp
   ENDFOR
 END
 

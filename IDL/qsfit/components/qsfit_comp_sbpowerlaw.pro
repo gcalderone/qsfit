@@ -1,5 +1,5 @@
 ; *******************************************************************
-; Copyright (C) 2016-2017 Giorgio Calderone
+; Copyright (C) 2016-2018 Giorgio Calderone
 ;
 ; This program is free software; you can redistribute it and/or
 ; modify it under the terms of the GNU General Public icense
@@ -21,7 +21,7 @@
 ;GFIT MODEL COMPONENT
 ;
 ;NAME:
-;  qsfit_comp_emline
+;  qsfit_comp_sbpowerlaw
 ;
 ;COMPONENT DESCRIPTION:
 ;  A smoothly broken power law in the form:
@@ -64,76 +64,55 @@
 ;  NONE
 ;
 PRO qsfit_comp_sbpowerlaw_init, comp
-  COMMON COM_QSFIT_COMP_SBPOWERLAW, $
-     xx, logx, log2, last_norm, last_x0, last_a1, last_da, last_curv, last_res, last_l3000, last_l2350
-  comp.curv.val = 1             ;lowest curvature
-  comp.curv.limits = [1, 1000]
-  xx = []
-  last_norm = gnan()
-  last_x0   = gnan()
-  last_a1   = gnan()
-  last_da   = gnan()
-  last_curv = gnan()
-  last_res  = gnan()
-  last_l3000= 1.
-  last_l2350= 1.
+  comp.par.curv.val = 1             ;lowest curvature
+  comp.par.curv.limits = [1, 1000]
 END
 
-FUNCTION qsfit_comp_sbpowerlaw_l3000
-  COMMON COM_QSFIT_COMP_SBPOWERLAW
-  IF (~FINITE(last_l3000)) THEN STOP
-  RETURN, last_l3000
-END
 
-FUNCTION qsfit_comp_sbpowerlaw_l2350
-  COMMON COM_QSFIT_COMP_SBPOWERLAW
-  IF (~FINITE(last_l2350)) THEN STOP
-  RETURN, last_l2350
-END
-
-FUNCTION qsfit_comp_sbpowerlaw, x, norm, x0, alpha1, dalpha, curv
-  COMPILE_OPT IDL2
-  ON_ERROR, !glib.on_error
-  COMMON COM_QSFIT_COMP_SBPOWERLAW
+FUNCTION qsfit_comp_sbpowerlaw_cdata, comp, x, cdata
+  IF (gn(cdata) GT 0) THEN RETURN, cdata
 
   ;;Compute LOG(X) the first time the function is called.
-  IF (gn(xx) EQ 0) THEN BEGIN
-     xx = DOUBLE(gloggen(MIN(x), MAX(x), 100))
-     logx = ALOG(xx)
-     log2 = ALOG(2.d)
-  ENDIF
+  xx = DOUBLE(gloggen(MIN(x), MAX(x), 100))
+  cdata = { $
+          xx: xx            , $
+          logx: ALOG(xx)    , $
+          res: REPLICATE(DOUBLE(gnan()), gn(xx)), $
+          eval: REPLICATE(gnan(), 2) $
+          }
+  RETURN, PTR_NEW(cdata)
+END
 
-  IF (last_norm EQ norm   AND   $
-      last_x0   EQ x0     AND   $
-      last_a1   EQ alpha1 AND   $
-      last_da   EQ dalpha AND   $
-      last_curv EQ curv  ) THEN $
-         RETURN, last_res
 
-  last_norm = norm  
-  last_x0   = x0    
-  last_a1   = alpha1
-  last_da   = dalpha
-  last_curv = curv  
-
+FUNCTION qsfit_comp_sbpowerlaw, x, norm, x0, alpha1, dalpha, curv, cdata=cdata
+  COMPILE_OPT IDL2
+  ON_ERROR, !glib.on_error
 
   s = 1.
   IF (dalpha LT 0) THEN s = -1.
   da = ABS(dalpha) ;;ABS(alpha2 - alpha1)
-  
+
   ;;Use logarithms to avoid overflows and improve performance
   ret = EXP(                         $
-        alpha1 * (logx - ALOG(x0)) + $
-        s/curv * (  ALOG(1.d + (xx/x0)^(da*curv)) - log2  ) $
+        alpha1 * ((*cdata).logx - ALOG(x0)) + $
+        s/curv * (  ALOG(1.d + ((*cdata).xx/x0)^(da*curv)) - ALOG(2.d)  ) $
            )
-  ;;IF (CHECK_MATH(mask=208,/NOCLEAR) NE 0) THEN STOP  
-  last_res   = FLOAT(INTERPOL(ret * norm, xx, x))
-  last_l3000 = FLOAT(INTERPOL(ret * norm, xx, 3000.))
-  last_l2350 = FLOAT(INTERPOL(ret * norm, xx, 2350.))
-  
-  ;;last_res = FLOAT(INTERPOL(norm * EXP(alpha1 * (logx - ALOG(x0))), xx, x))
-  ;;last_res = FLOAT(INTERPOL(norm * (xx/x0)^alpha1, xx, x))
+  ;;IF (CHECK_MATH(mask=208,/NOCLEAR) NE 0) THEN STOP
 
-  RETURN, last_res
+  (*cdata).res = ret * norm
+  (*cdata).eval = INTERPOL((*cdata).res, (*cdata).xx, [2350., 3000.])
+
+  RETURN, FLOAT(INTERPOL(ret * norm, (*cdata).xx, x))
 END
 
+FUNCTION qsfit_comp_sbpowerlaw_l2350
+  COMMON GFIT
+  cdata = gfit_cdata.i0_continuum
+  RETURN, (*cdata).eval[0]
+END
+
+FUNCTION qsfit_comp_sbpowerlaw_l3000
+  COMMON GFIT
+  cdata = gfit_cdata.i0_continuum
+  RETURN, (*cdata).eval[1]
+END

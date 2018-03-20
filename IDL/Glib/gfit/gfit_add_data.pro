@@ -1,5 +1,5 @@
 ; *******************************************************************
-; Copyright (C) 2016-2017 Giorgio Calderone
+; Copyright (C) 2016-2018 Giorgio Calderone
 ;
 ; This program is free software; you can redistribute it and/or
 ; modify it under the terms of the GNU General Public icense
@@ -32,6 +32,11 @@
 ;  GFIT.data.
 ;
 ;PARAMETERS:
+;  LABEL= (input, a scalar string)
+;    The name of the data set.  This will be the name of a field in
+;    the gfit.data structure, hence it ust be a valid IDL name.  Also,
+;    it should not clash with other data set names.
+;
 ;  X, Y, E (input, an array of numbers)
 ;    The data set independent quantity, dependent quantity or measure,
 ;    and the associated uncertainty.
@@ -40,71 +45,43 @@
 ;    A variable which will be stored in the GFIT structure for user
 ;    convenience.
 ;
-;  LABEL= (optional input, a scalar string)
-;    The name of the data set.  This will be the name of a field in
-;    the gfit.data structure, hence it ust be a valid IDL name.  Also,
-;    it should not clash with other data set names.
-;
 ;NOTES:
 ;  The model must be recompiled (using gfit_compile) after a call to
 ;  to this procedure.
 ;
-PRO gfit_add_data, x, y, e, UDATA=udata, LABEL=label
+PRO gfit_add_data, x, y, e, UDATA=udata, GROUP=group, IOBS=iobs
   COMPILE_OPT IDL2
   ON_ERROR, !glib.on_error
-  COMMON GFIT_PRIVATE
   COMMON GFIT
-
-  IF (~KEYWORD_SET(label)) THEN label = 'd' + gn2s(gfit.data.nn)
-
-  IF (STRUPCASE(gfit.opt.data_type) EQ 'POISSON') THEN BEGIN
-     IF (gn(e) NE 0) THEN $
-        gprint, /warn, 'Errors are ignored in POISSON mode!'
-     e = y*gnan()
-  ENDIF
 
   IF (gn(x) NE gn(y)) THEN MESSAGE, 'X and Y input arrays must have the same length'
   IF (gn(e) NE gn(y)) THEN MESSAGE, 'Y and ERR input arrays must have the same length'
+  IF (gn(group) NE gn(x)) THEN group = REPLICATE(1, gn(x))   ;;consider all available data
   IF (~KEYWORD_SET(udata)) THEN udata = 0b
 
+  IF (N_TAGS(gfit.obs) EQ 0) THEN gfit_add_obs
+  IF (gn(iobs) EQ 0) THEN iobs = N_TAGS(gfit.obs)-1
+  IF (iobs LT 0  OR  $
+      iobs GE N_TAGS(gfit.obs)) THEN $
+     MESSAGE, 'IOBS=' + gn2s(iobs) + ' is not a valid ID'
+
   ;;Prepare the data set structure
-  data = {  label: label,  $
-            x: FLOAT(x) ,  $
-            Y: FLOAT(y) ,  $
-            E: FLOAT(e),   $
-            group: LONARR(gn(x)), $
-            udata: udata }
-
-  ;;By default consider all available data
-  data.group = 1
-
-
-  expr = CREATE_STRUCT('model', '')
-
-  plot = CREATE_STRUCT('main' , template_main_plotopt, $
-                       'data' , template_expr_plotopt, $
-                       'model', template_expr_plotopt)
-
-  plot.main.title = label
-  plot.data.label = label
-  plot.data.gp    = 'with yerrorbars pt 0 lt rgb "black"'
-
-  plot.model.label = 'Model'
-  plot.model.gp    = 'with line ls 1 dt 1 lw 2 lt rgb "orange"'
-
-  ;;Append to current structures
-  data = gstru_insert(gfit.data, label, data, gfit.data.nn)
-  expr = gstru_insert(gfit.expr, label, expr, gfit.data.nn)
-  plot = gstru_insert(gfit.plot, label, plot, gfit.data.nn)
-  data.nn += 1
-
-  gfit = { $
-           opt:   gfit.opt   $
-         , data:  data       $
-         , comp:  gfit.comp  $
-         , expr:  expr       $
-         , cmp:   gfit.cmp   $
-         , res:   template_res $
-         , plot:  plot       $
+  obs = gfit.obs.(iobs)
+  id = N_TAGS(obs.data)
+  data = {  x: FLOAT(x) ,  $
+            y: FLOAT(y) ,  $
+            e: FLOAT(e) ,  $
+            group: group,  $
+            udata: udata,  $
+            plot: { enable:   1b    , $                               ;;Enable (1) or disable (0) the plot of this expression.
+                    label:    'Data' + gn2s(id), $                    ;;Label shown in plot legend.
+                    gp:       'with yerrorbars pt 0 lt rgb "black"' $ ;;Gnuplot format
+                  } $
          }
+
+  tmp = (id EQ 0  ?  {i0: data}  :  CREATE_STRUCT(obs.data, 'i'+gn2s(id), data))
+  obs = {expr: obs.expr, aux: obs.aux, data: tmp, eval: 0, plot: obs.plot}
+
+  ;; Replace obs object.
+  gfit_replace_obs, iobs, obs
 END

@@ -35,82 +35,95 @@ END
 ;
 ;NOTES:
 ;
-PRO gfit_run
+PRO gfit_run, EVAL=eval
   COMPILE_OPT IDL2
   ON_ERROR, !glib.on_error
-  COMMON GFIT_PRIVATE
   COMMON GFIT
 
   ;;Measure elapsed time
   time = SYSTIME(1)
 
-  niter = 0
-  WHILE (1) DO BEGIN
+  IF (PTR_VALID(gfit.res.covar)) THEN BEGIN
+     PTR_FREE, gfit.res.covar
+     gfit.res.covar = PTR_NEW()
+  ENDIF     
+
+  IF (KEYWORD_SET(eval)) THEN BEGIN
+     gfit.opt.evalAux = 1
+
      par = gfit_get_par()
+     IF (gn(par) EQ 0) THEN $
+        MESSAGE, 'No free parameters in the model'
+     IF (~gsearch(par.tied EQ '', i)) THEN $
+        MESSAGE, 'All parameters are tied'
+     par = par[i]
 
-     pval = MPFIT('mpfit_eval_model'                              $
-                  , ITERPROC='gfit_iterproc'                      $
-                  , par.val, PARINFO=par, PERROR=perr             $
-                  , BEST_FJAC=BEST_FJAC, /CALC_FJAC               $
-                  , COVAR=covar, BESTNORM=fs, DOF=dof             $
-                  , NITER=niter1, STATUS=status, ERRMSG=errmsg    $
-                  , MAXITER=1e5                                   $
-                  , FTOL=gfit.opt.tol, XTOL=gfit.opt.tol          $
-                  , NPRINT=1)
+     dummy = mpfit_eval_model(par.val)
+     gfit.res.fit_stat = TOTAL(gfit_wdev^2.d)
 
-     ;;Ensure we print a newline since iterpoc only prints carriage return
-     IF (gfit.opt.log_iter) THEN PRINT
+     gfit.res.test_stat = gfit.res.fit_stat
+     gfit.res.test_dof  = gn(gfit_wdev) - gn(WHERE(par.fixed EQ 0   AND  par.tied EQ '', /null))
+     gfit.res.test_prob = 1 - CHISQR_PDF(gfit.res.fit_stat, gfit.res.test_dof)
+     RETURN
+  ENDIF
 
-     IF (status LE 0) THEN BEGIN        
-        IF (status EQ -999) THEN BEGIN
-           gprint, 'GFIT interrupted by user'
-        ENDIF $
-        ELSE BEGIN
-           gprint
-           gprint, 'MPFIT Status: ', status
-           gprint, 'Routine mpfit reported an error: '
-           gprint, errmsg
-           gprint
-           gprint, 'Parameter values in last iteration:'
-           gprint, pval
-           MESSAGE, 'Routine mpfit reported an error: ' + errmsg
-        ENDELSE
+  maxiter = 1e5
+  gfit.opt.evalAux = 0
+  gfit.res.mpfit_status = 0
+  gfit.res.elapsed_time = gnan()
 
-        BREAK
-     ENDIF
-     niter += niter1
+  par = gfit_get_par()
+  IF (gn(par) EQ 0) THEN $
+     MESSAGE, 'No free parameters in the model'
+  IF (~gsearch(par.tied EQ '', i)) THEN $
+     MESSAGE, 'All parameters are tied'
+  par = par[i]
 
-     ;;Save parameter's values and errors
-     gfit_set_parval, pval, perr
-     
-     IF (status EQ 5) THEN BEGIN
-        gprint, 'The maximum number of iterations has been reached'
-        gprint, 'Would you like to continue (y/n) ?'
-        gkey, key=c
-        gprint, 'Answer: ', c
-        gprint
-        IF (STRUPCASE(c) NE 'Y') THEN BREAK
+  pval = MPFIT('mpfit_eval_model'                              $
+               , ITERPROC='gfit_iterproc'                      $
+               , par.val, PARINFO=par, PERROR=perr             $
+               , BEST_FJAC=BEST_FJAC, /CALC_FJAC               $
+               , COVAR=covar, BESTNORM=fitstat, DOF=dof        $
+               , NITER=niter1, STATUS=status, ERRMSG=errmsg    $
+               , MAXITER=maxiter                               $
+               , FTOL=gfit.opt.tol, XTOL=gfit.opt.tol          $
+               , NPRINT=1)
+     ;gps, par
+     ;print, pval, status
+     ;gkey
+
+  IF (status EQ 5) THEN $
+     MESSAGE, 'The maximum number of iterations has been reached'
+
+  ;;Save parameter's values and errors
+  gfit_set_parval, pval, perr
+  gfit.res.mpfit_status = status
+  gfit.res.fit_stat = fitstat
+
+  ;;Ensure we print a newline since iterpoc only prints carriage return
+  IF (gfit.opt.log_iter) THEN PRINT
+
+  IF (status LE 0) THEN BEGIN        
+     IF (status EQ -999) THEN BEGIN
+        gprint, 'GFIT interrupted by user'
      ENDIF $
-     ELSE BREAK
-  ENDWHILE
+     ELSE BEGIN
+        gprint
+        gprint, 'MPFIT Status: ', status
+        gprint, 'Routine mpfit reported an error: '
+        gprint, errmsg
+        gprint
+        gprint, 'Parameter values in last iteration:'
+        gprint, pval
+        MESSAGE, 'Routine mpfit reported an error: ' + errmsg
+     ENDELSE
+  ENDIF
 
-  ;;Evaluate model, "fit" and "test" statistics.
-  gfit_eval
+  gfit.res.test_stat = gfit.res.fit_stat
+  gfit.res.test_dof  = dof
+  gfit.res.test_prob = 1 - CHISQR_PDF(gfit.res.fit_stat, gfit.res.test_dof)
 
+  gfit.res.covar = PTR_NEW(covar)
 
-  ;;Update RES structure
-  res = gstru_sub(gfit.res, drop='covar')
-  res = CREATE_STRUCT(res, 'covar', covar)
-  res.mpfit_status = status
-  res.elapsed_time = SYSTIME(1)-time
-
-  gfit = { $
-         opt:   gfit.opt     , $
-         data:  gfit.data    , $
-         comp:  gfit.comp    , $
-         expr:  gfit.expr    , $
-         cmp:   gfit.cmp     , $
-         res:   res          , $
-         plot:  gfit.plot      $
-         }
+  gfit.res.elapsed_time = SYSTIME(1)-time
 END

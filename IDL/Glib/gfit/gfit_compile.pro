@@ -5,7 +5,7 @@
 ;
 ;PURPOSE:
 ;  Evaluate the model by calling gfit_eval_* for all datasets, and
-;  store the result in "gfit.cmp".
+;  store the result in "gfit.eval".
 ;
 ;PARAMETERS:
 ;  PAR  (input, array of floating point numbers)
@@ -22,6 +22,17 @@ FUNCTION mpfit_eval_model, par, EXPR=expr
   MESSAGE, 'No GFIT model has been compiled.'
 END
 
+FUNCTION doEvaluation, i0, nn, par
+  COMMON GFIT
+  ret = 0
+  FOR i=0, nn-1 DO BEGIN
+     IF (cachePar[i0+i] NE par[i]) THEN BEGIN
+        cachePar[i0+i] = par[i]
+        ret = 1
+     ENDIF
+  ENDFOR
+  RETURN, ret
+END
 
 
 ;=====================================================================
@@ -74,119 +85,140 @@ END
 PRO gfit_compile
   COMPILE_OPT IDL2
   ON_ERROR, !glib.on_error
-  COMMON GFIT_PRIVATE
   COMMON GFIT
 
-  IF (gfit.comp.nn EQ 0) THEN $
+  IF (gtype(gfit.comp) NE 'STRUCT') THEN $
      MESSAGE, 'No component in the model.'
 
-  IF (gfit.comp.npar NE  gn( gfit_get_par() )) THEN $
-     MESSAGE, 'Unexpected error'
+  IF (N_TAGS(gfit.obs) EQ 0) THEN $
+     MESSAGE, 'No observations in the model.'
 
-  ;;Get data set and component names
-  detn   = (TAG_NAMES(gfit.data))[0:gfit.data.nn-1]
-  cnames = (TAG_NAMES(gfit.comp))[0:gfit.comp.nn-1]
-
-  ;;There must be a model expression for each data set
-  FOR idata=0, gfit.data.nn-1 DO BEGIN
-     IF (STRTRIM(gfit.expr.(idata).model, 2) EQ '') THEN $
-        MESSAGE, 'No MODEL expression defined for data set: ' + detn[idata]
-  ENDFOR
-
-  ;;Update the CMP structure
-  gfit_prepare_cmp
+  ;;Update the EVAL structure
+  gfit_prepare_eval
 
   ;;Open .pro file for writing
   OPENW, lun, 'mpfit_eval_model' + gn2s(gfit.opt.pid) + '.pro', /get_lun
 
-  ;;Loop through data sets
-  FOR idata=0, gfit.data.nn-1 DO BEGIN
-     ;;---------------------------------------------------------------
-     ;;Write gfit_eval_* function for current data set
-     PRINTF, lun, 'FUNCTION gfit_eval_' + detn[idata] + ', x, par, EXPR=_expr'
-     PRINTF, lun, '  COMPILE_OPT IDL2'
-     PRINTF, lun, '  ON_ERROR, !glib.on_error'
-     PRINTF, lun, '  COMMON gfit'
-     PRINTF, lun, '  COMMON gfit_private'
-     PRINTF, lun, '  currentDataSet = ' + gn2s(idata)
-     PRINTF, lun
-  
-     ;;Loop though components
-     npar = 0 ;;account for already considered parameters
-     FOR icomp=0, gfit.comp.nn-1 DO BEGIN
-        cc = gfit.comp.(icomp)
-        IF (cc.enabled) THEN BEGIN
-           ;;Evaluate component values for each X
-           aa = '  ' + cnames[icomp] + ' = DOUBLE(' + cc.funcName + '(x'
-           IF (cc.npar GE 1) THEN BEGIN
-              tmp = 'par[' + gn2s(INDGEN(cc.npar) + npar) + ']'
-              aa += ', ' + STRJOIN(tmp, ', ')
-           ENDIF
-           IF (cc.hasopt) THEN $
-              aa += ', _extra=gfit.comp.' + cnames[icomp] + '.opt'
-           aa += '))'
-           PRINTF, lun, aa
-        ENDIF $
-        ELSE BEGIN
-           ;;Component is disabled, use "disabled_val" value.
-           PRINTF, lun, '  ' + cnames[icomp] + ' = ' + gn2s(cc.disabled_val)
-        ENDELSE
+  ;;Component names and parameters
+  cnames = TAG_NAMES(gfit.comp)
+  allPar = gfit_get_par()
+  par = allPar
 
-        npar += cc.npar
-     ENDFOR
-     PRINTF, lun
-     
-     ;;Model evaluation
-     PRINTF, lun, '  MODEL = ' + gfit.expr.(idata).MODEL
-     PRINTF, lun
+  ;;------------------------------------------------------------------
+  ;; Prepare CDATA
+  cdataNames = []
+  IF (gn(gfit_cdata) GT 0) THEN $
+     cdataNames = TAG_NAMES(gfit_cdata)
 
-     ;;Secondary expression evaluation
-     PRINTF, lun, '  IF (flag_evalAllExpr) THEN BEGIN'
-     expr_label = TAG_NAMES(gfit.expr.(idata))
-     
-     FOR i=1, gn(expr_label)-1 DO $
-        PRINTF, lun, '    ' + expr_label[i] + ' = ' + gfit.expr.(idata).(i)
-        
-     tmp = expr_label + ': ' + expr_label
-     PRINTF, lun, '    _expr = { ' + STRJOIN(tmp, ', ') + '}'
-     PRINTF, lun, '  ENDIF'
-     PRINTF, lun
+  FOR icomp=0, N_TAGS(gfit.comp)-1 DO BEGIN
+     IF (gfit.comp.(icomp).hasCdata) THEN BEGIN
+        FOR iobs=0, N_TAGS(gfit.obs)-1 DO BEGIN
+           tag = 'i' + gn2s(iobs) + '_' + cnames[icomp]
 
-     ;;Return value
-     PRINTF, lun, '  RETURN, MODEL'
-     PRINTF, lun, 'END'
-     PRINTF, lun
-     PRINTF, lun
-     PRINTF, lun
+           IF (gsearch(STRUPCASE(tag) EQ cdataNames, itag)) THEN BEGIN
+              tmp = gfit_cdata.(itag)
+              tmp = CALL_FUNCTION(gfit.comp.(icomp).funcName + '_cdata', $
+                                  gfit.comp.(icomp), gfit.obs.(iobs).eval.x, tmp)
+           ENDIF $
+           ELSE BEGIN
+              tmp = CALL_FUNCTION(gfit.comp.(icomp).funcName + '_cdata', $
+                                  gfit.comp.(icomp), gfit.obs.(iobs).eval.x)
+              gfit_cdata = CREATE_STRUCT(gfit_cdata, tag, tmp)
+           ENDELSE
+        ENDFOR
+     ENDIF
   ENDFOR
-  
+
+
   ;;------------------------------------------------------------------
   ;;Write mpfit_eval_model function
-  PRINTF, lun, 'FUNCTION mpfit_eval_model, par, EXPR=expr'
+  PRINTF, lun, 'FUNCTION mpfit_eval_model, par'
   PRINTF, lun, '  COMPILE_OPT IDL2'
   PRINTF, lun, '  ON_ERROR, !glib.on_error'
   PRINTF, lun, '  COMMON gfit'
-  PRINTF, lun, '  COMMON gfit_private'
   PRINTF, lun
-  PRINTF, lun, '  flag_evalAllExpr = ARG_PRESENT(expr)'
-
-  FOR idata=0, gfit.data.nn-1 DO $
-     PRINTF, lun, '  gfit.cmp.' + detn[idata] + '.m = ' $
-             + 'gfit_eval_' + detn[idata] + $
-             '(gfit.data.' + detn[idata] + '.x[dataNoticed.('+gn2s(idata)+')], par, EXPR=expr_' + detn[idata] + ')'
-  PRINTF, lun
-
-  PRINTF, lun, '  IF (flag_evalAllExpr) THEN BEGIN'
-  PRINTF, lun, '    expr = { ' + STRJOIN(detn + ': expr_' + detn, ', ') + '}'
+  dummy = gsearch(count=tmp, par.tied EQ '')
+  PRINTF, lun, '  IF (gn(par) NE ' + gn2s(tmp) + ') THEN BEGIN'
+  PRINTF, lun, '    PRINT, gn(par), ', gn2s(tmp)
+  PRINTF, lun, '    STOP'
   PRINTF, lun, '  ENDIF'
+  ;PRINTF, lun, '  HELP, par'
   PRINTF, lun
 
-  FOR idata=0, gfit.data.nn-1 DO $
-     PRINTF, lun, '  wdev_' + detn[idata] + ' = gfit_weighted_dev_' + gfit.opt.data_type + $
-             '( gfit.cmp.' + detn[idata] + ' )'
-  PRINTF, lun, '  RETURN, [' + STRJOIN('wdev_' + detn, ', ') + ']'
+  PRINTF, lun, '  ;; Parameters'
+  count = 0
+  FOR ipar=0, gn(par)-1 DO BEGIN
+     IF (par[ipar].tied NE '') THEN CONTINUE
+     
+     tmp = '  ' + par[ipar].comp + '_' + par[ipar].parname
+     PRINTF, lun, tmp + ' = par[' + gn2s(count) + ']'
+     count += 1
+  ENDFOR
+
+  ;;Drop tied parameters
+  IF (~gsearch(par.tied EQ '', i)) THEN $
+     MESSAGE, 'ALl parameters are tied'
+  par = par[i]
+
+  ;;Loop through observations
+  cachePar = []
+  FOR iobs=0, N_TAGS(gfit.obs)-1 DO BEGIN
+     PRINTF, lun
+     PRINTF, lun, '  ;; Obs. ' + gn2s(iobs)
+     PRINTF, lun, '  cc = gfit.obs.('+gn2s(iobs)+').eval'
+     obs = gfit.obs.(iobs)
+
+     ;;Loop though components
+     npar = 0 ;;account for already considered parameters
+     FOR icomp=0, N_TAGS(gfit.comp)-1 DO BEGIN
+        cc = gfit.comp.(icomp)
+        IF (cc.enabled) THEN BEGIN
+           IF (gsearch(STRUPCASE(allPar.comp) EQ cnames[icomp]  AND  allPar.tied NE '', ipar)) THEN BEGIN
+              tmp1 = allPar[ipar].comp + '_' + allPar[ipar].parname + ' = ' + allPar[ipar].tied
+              tmp2 = 'gfit.comp.' + allPar[ipar].comp + '.par.' + allPar[ipar].parname + '.val = ' + allPar[ipar].comp + '_' + allPar[ipar].parname
+              PRINTF, lun, '  ' + tmp1
+              PRINTF, lun, '  ' + tmp2
+           ENDIF
+
+           ;;Evaluate component values for each X
+           aa = '  cc.' + cnames[icomp] + ' = ' + cc.funcName + '(cc.x'
+           IF (cc.npar GT 0) THEN BEGIN
+              tmp = cnames[icomp] + '_' + TAG_NAMES(cc.par)
+              aa += ', ' + STRJOIN(tmp, ', ')
+              tmp1 = gn2s(npar) + ':' + gn2s(npar + cc.npar-1)
+              PRINTF, lun, '  IF (doEvaluation(' + gn2s(npar) + ', ' + gn2s(cc.npar) + ', [' + STRJOIN(tmp, ',') +  '])) THEN $'
+           ENDIF
+           IF (cc.hasOpt) THEN aa += ', opt=gfit.comp.' + cnames[icomp] + '.opt'
+           IF (cc.hasCdata) THEN aa += ', cdata=gfit_cdata.i' + gn2s(iobs) + '_' + cnames[icomp]
+           aa += ')'
+           PRINTF, lun, '  ' + aa
+        ENDIF
+        npar += cc.npar
+     ENDFOR
+     PRINTF, lun
+     cachePar = FLTARR(npar)
+     
+     ;;Model evaluation
+     PRINTF, lun, '  cc.m = ' + obs.expr
+     IF (N_TAGS(obs.aux) GT 0) THEN BEGIN
+        anames = TAG_NAMES(obs.aux)
+        PRINTF, lun, '  IF (gfit.opt.evalAux) THEN BEGIN'
+        FOR i=0, N_TAGS(obs.aux)-1 DO $
+           PRINTF, lun, '    cc.aux.' + anames[i] + ' = ' + obs.aux.(i).expr
+        PRINTF, lun, '  ENDIF'
+     ENDIF
+
+     PRINTF, lun, '  _wdev'+gn2s(iobs)+' = gfit_weighted_dev_' + gfit.opt.data_type + '(cc)'
+     PRINTF, lun, '  gfit.obs.(' + gn2s(iobs) + ').eval = cc'
+     PRINTF, lun
+  ENDFOR
+
+  tmp = '_wdev' + gn2s(LINDGEN(N_TAGS(gfit.obs)))
+  PRINTF, lun, '  gfit_wdev = [' + STRJOIN(tmp, ', ') + ']'
+  ;PRINTF, lun, '  i = where(~finite(gfit.obs.(0).eval.m))'
+  ;PRINTF, lun, '  IF (i[0] NE -1) THEN STOP'
+  PRINTF, lun, '  RETURN, gfit_wdev'
   PRINTF, lun, 'END'
-  PRINTF, lun
   PRINTF, lun
   PRINTF, lun
 
@@ -202,24 +234,9 @@ PRO gfit_compile
   RESOLVE_ROUTINE, 'mpfit_eval_model' + gn2s(gfit.opt.pid), /COMPILE_FULL_FILE, /EITHER
   !QUIET = backup_quiet
 
-  ;;Try the newly created routines
-  par = gfit_get_par()
-  tmp = gfit.opt.log_iter ;;disable logging
-  gfit.opt.log_iter = 0
-
-  ;;Ensure there is at least one free parameter, otherwise the routine
-  ;;can not be tested
-  IF (MIN(par.fixed) EQ 1) THEN $
-     MESSAGE, 'All parameters are fixed, can not evaluate the model'
-
-  pval = MPFIT('mpfit_eval_model', par.val, parinfo=par, maxiter=0, iterproc='gfit_iterproc')
-  gfit.opt.log_iter = tmp
-
-  ;;If one or more parameters are tied MPFIT will evaluate the
-  ;;expressions and return the correct values.  However, these values
-  ;;are not yet stored in GFIT structure, hence I do it now:
-  gfit_set_parval, pval, /only_tied
+  ;;Test the new routines
+  gfit_run, /eval
 
   ;;File is no longer needed 
-  FILE_DELETE, 'mpfit_eval_model' + gn2s(gfit.opt.pid) + '.pro', /allow
+  ;;FILE_DELETE, 'mpfit_eval_model' + gn2s(gfit.opt.pid) + '.pro', /allow
 END

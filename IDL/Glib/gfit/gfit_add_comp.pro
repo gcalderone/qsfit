@@ -1,5 +1,5 @@
 ; *******************************************************************
-; Copyright (C) 2016-2017 Giorgio Calderone
+; Copyright (C) 2016-2018 Giorgio Calderone
 ;
 ; This program is free software; you can redistribute it and/or
 ; modify it under the terms of the GNU General Public icense
@@ -38,68 +38,39 @@
 ;    the gfit.comp structure, hence it ust be a valid IDL name.  Also,
 ;    it should not clash with other component names.
 ;
-;  TYPE= (optional input, a scalar string or a structure returned by
+;  COMP (optional input, a scalar string or a structure returned by
 ;  gfit_component)
 ;    The type of component to be added to the model.  This parameter
 ;    can be either the name of a component or a structure returned by
 ;    gfit_component.  If a string is provided, gfit_component will be
 ;    called automatically to obtain the corresponding structue.  If
-;    TYPE= is not given the "simplepar" component will be added.
+;    COMP is not given the "simplepar" component will be added.
 ;
 ;NOTES:
 ;  The model must be recompiled (using gfit_compile) after a call to
 ;  to this procedure.
 ;
-PRO gfit_add_comp, label, TYPE=type
+PRO gfit_add_comp, label, _comp
   COMPILE_OPT IDL2
   ON_ERROR, !glib.on_error
-  COMMON GFIT_PRIVATE
   COMMON GFIT
 
-  IF (gn(type) EQ 0) THEN $
-     type = 'gfit_comp_simplepar'
+  IF (gn(_comp) EQ 0) THEN $
+     comp = gfit_component('gfit_comp_simplepar') $
+  ELSE BEGIN
+     ;;If COMP is a string generate corresponding component structure
+     IF (gtype(_comp) EQ 'STRING') THEN   $
+        comp = gfit_component(_comp) $
+     ELSE $
+        comp = _comp
+  ENDELSE
 
-  IF (gn(type) NE 1) THEN $
-     MESSAGE, 'Invalid parameters'
+  FOR i=0, N_TAGS(comp.par)-1 DO $
+     comp.par.(i).comp = label
 
-  ;;If COMP is a string generate corresponding component structure
-  IF (gtype(type) EQ 'STRING') THEN   $
-     newComp = gfit_component(type) $
+  IF (gtype(gfit.comp) NE 'STRUCT') THEN $
+     tmp = CREATE_STRUCT(label, comp) $
   ELSE $
-     newComp = type
-
-  ;;LABEL can be an array of string, ensure there are no duplicates
-  IF (gn(UNIQ(SORT(STRUPCASE(label)))) LT gn(label)) THEN $
-     MESSAGE, 'Duplicate names in LABEL'
-
-  ;;Extract the GFIT.comp structure
-  acomp = gfit.comp
-  FOR i=0, gn(label)-1 DO BEGIN
-
-     ;;Ensure the new component name do not clash with existing ones
-     name = label[i]
-     IF (gsearch(TAG_NAMES(gfit.comp) EQ STRUPCASE(name))) THEN $
-        MESSAGE, 'A component named: ' + name + ' already exists!'
-
-     ;;Add component
-     newComp.name = name
-     FOR j=0, newComp.npar-1 DO newComp.(j).comp = name
-     acomp = gstru_insert(acomp, name, newComp, gfit.comp.nn+i)
-
-     ;;Update total number of parameters
-     acomp.npar += newComp.npar
-  ENDFOR
-
-  ;;Update number of components
-  acomp.nn += gn(label)
-
-  ;;Update GFIT structure
-  gfit = { opt:   gfit.opt    , $
-           data:  gfit.data   , $
-           comp:  acomp       , $
-           expr:  gfit.expr   , $
-           cmp:   gfit.cmp    , $
-           res:   template_res, $
-           plot:  gfit.plot     $
-         }
+     tmp = CREATE_STRUCT(gfit.comp, label, comp)
+  gfit = {opt: gfit.opt, comp: tmp, obs: gfit.obs, res: gfit.res}
 END

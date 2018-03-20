@@ -1,5 +1,5 @@
 ; *******************************************************************
-; Copyright (C) 2016-2017 Giorgio Calderone
+; Copyright (C) 2016-2018 Giorgio Calderone
 ;
 ; This program is free software; you can redistribute it and/or
 ; modify it under the terms of the GNU General Public icense
@@ -23,7 +23,7 @@ PRO gfit_teststat_gauss, cmp
   COMMON GFIT
 
   chisq = TOTAL( ((cmp.y - cmp.m)^2 / cmp.e^2) )
-  dof = gn(cmp) - gfit_free_param()
+  dof = gn(cmp) - gn(gfit_get_par())
 
   gfit.res.test_stat = chisq
   gfit.res.test_dof  = dof

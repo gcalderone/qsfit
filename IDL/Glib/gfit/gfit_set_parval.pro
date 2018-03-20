@@ -18,33 +18,48 @@
 
 ;=====================================================================
 ;NAME:
-;  gfit_get_par
+;  gfit_set_parval
 ;
 ;PURPOSE:
-;  Return all model parameters info.
+;  Save the parameter values into the GFIT structure.
 ;
 ;PARAMETERS:
+;  PVAL  (input, array of floating point numbers)
+;    New values to be stored in the GFIT structure.  There must be a
+;    value for each parameter in the model.
 ;
-;RETURN VALUE: (array of structures)
-;  Each element of the array contain information for a model
-;  parameter.  The template structure for each element is
-;  template_param (see gfit_init.pro).
+;  PERR  (input, array of floating point numbers)
+;    New uncertainties values to be stored in the GFIT structure.
+;    There must be a value for each parameter in the model.
 ;
-FUNCTION gfit_get_par
+PRO gfit_set_parval, pval, perr
   COMPILE_OPT IDL2
   ON_ERROR, !glib.on_error
   COMMON GFIT
 
-  IF (N_TAGS(gfit.comp) EQ 0) THEN RETURN, []
-  par = LIST()
+  count = 0
+  IF (N_TAGS(gfit.comp) EQ 0) THEN RETURN
   FOR i=0, N_TAGS(gfit.comp)-1 DO BEGIN
      IF (~gfit.comp.(i).enabled) THEN CONTINUE
-     FOR j=0, gfit.comp.(i).npar-1 DO $
-        par.add, gfit.comp.(i).par.(j)
-  ENDFOR
-  IF (gn(par) EQ 0) THEN MESSAGE, 'No component is enabled'
-  par = par.toArray()
-  par.limited = FINITE(par.limits)
+     FOR j=0, gfit.comp.(i).npar-1 DO BEGIN
+        par = gfit.comp.(i).par.(j)
+        IF (par.tied NE '') THEN BEGIN
+           par.val = gnan()
+           par.err = gnan()
+           CONTINUE
+        ENDIF
+        par.val = pval[count]
+        par.err = perr[count]
 
-  RETURN, par
+        ;;Check param value is within the limit
+        IF ((par.val EQ par.limits[0])   OR   $
+            (par.val EQ par.limits[1]))  THEN BEGIN
+           par.err  = gnan()
+        ENDIF
+        gfit.comp.(i).par.(j) = par
+        count += 1
+     ENDFOR
+  ENDFOR
+
+  IF (gn(pval) NE count) THEN STOP
 END
