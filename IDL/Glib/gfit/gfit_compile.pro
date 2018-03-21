@@ -238,5 +238,5 @@ PRO gfit_compile
   gfit_run, /eval
 
   ;;File is no longer needed 
-  ;;FILE_DELETE, 'mpfit_eval_model' + gn2s(gfit.opt.pid) + '.pro', /allow
+  FILE_DELETE, 'mpfit_eval_model' + gn2s(gfit.opt.pid) + '.pro', /allow
 END

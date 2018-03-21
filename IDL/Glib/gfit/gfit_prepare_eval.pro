@@ -37,10 +37,13 @@ PRO gfit_prepare_eval
      IF (N_TAGS(gfit.comp) GT 0) THEN BEGIN
         cnames = TAG_NAMES(gfit.comp)
         FOR icomp=0, N_TAGS(gfit.comp)-1 DO BEGIN
-           val = REPLICATE(DOUBLE(gnan()), nn)
+           val = REPLICATE(gnan(), nn)
            IF (~gfit.comp.(icomp).enabled) THEN $
               val = gfit.comp.(icomp).disabled_val
-           tmp = CREATE_STRUCT(tmp, cnames[icomp], DOUBLE(val))
+           IF (cnames[icomp] EQ 'BALMER') THEN $
+              tmp = CREATE_STRUCT(tmp, cnames[icomp], DOUBLE(val)) $
+           ELSE $
+              tmp = CREATE_STRUCT(tmp, cnames[icomp], FLOAT(val))
         ENDFOR
      ENDIF
 
