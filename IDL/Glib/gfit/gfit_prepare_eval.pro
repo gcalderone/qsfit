@@ -20,7 +20,7 @@ PRO gfit_prepare_eval
   cachePar = []
   FOR iobs=0, N_TAGS(gfit.obs)-1 DO BEGIN
      obs = gfit.obs.(iobs)
-     nn = 0
+     nn = 0l
      FOR idata=0, N_TAGS(obs.data)-1 DO BEGIN
         i = WHERE(obs.data.(idata).group GT 0)
         IF (i[0] EQ -1) THEN $
@@ -61,12 +61,19 @@ PRO gfit_prepare_eval
         aux = 0
      tmp = CREATE_STRUCT(tmp, 'aux', aux)
 
+     nn = 0
      FOR idata=0, N_TAGS(obs.data)-1 DO BEGIN
         i = WHERE(obs.data.(idata).group GT 0)
-        tmp.x = obs.data.(idata).x[i]
-        tmp.y = obs.data.(idata).y[i]
-        tmp.e = obs.data.(idata).e[i]
+        tmp.x[nn:nn+gn(i)-1] = obs.data.(idata).x[i]
+        tmp.y[nn:nn+gn(i)-1] = obs.data.(idata).y[i]
+        tmp.e[nn:nn+gn(i)-1] = obs.data.(idata).e[i]
+        nn += gn(i)
      ENDFOR
+
+     i = SORT(tmp.x)
+     tmp.x = tmp.x[i]
+     tmp.y = tmp.y[i]
+     tmp.e = tmp.e[i]
 
      obs = {expr: obs.expr, aux: obs.aux, data: obs.data, eval: tmp, plot: obs.plot}
      gfit_replace_obs, iobs, obs
