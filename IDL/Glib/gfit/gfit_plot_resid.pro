@@ -52,7 +52,7 @@ PRO gfit_plot_resid, OBS=iobs
 
   x = obs.eval.x
   y = (obs.eval.y - obs.eval.m) / obs.eval.e
-  ;gfit_rebin, obs.plot.rebin, x, y
+  gfit_rebin, obs.plot.rebin, x, y
   ggp_data, x, y, plot='w points notitle pt 1 ps 0.7 lc rgb "black"'
   ;;ggp_data, eval.x, y, REPLICATE(1., gn(y)), plot='with yerrorbars notitle lt rgb "gray"'
 

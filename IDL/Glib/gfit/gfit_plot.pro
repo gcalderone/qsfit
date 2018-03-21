@@ -62,7 +62,7 @@ PRO gfit_plot, OBS=iobs
      x = d.x[j]
      y = d.y[j]
      e = d.e[j]
-     ;;gfit_rebin, obs.plot.rebin, x, y, e
+     gfit_rebin, obs.plot.rebin, x, y, e
      name = 'd' + gn2s(iobs) + '_' + gn2s(i)
      ggp_data, name=name, x, y, e
      ggp_plot, '$' + name + ' title "' + d.plot.label + '" ' + d.plot.gp     
