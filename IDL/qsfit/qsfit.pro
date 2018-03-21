@@ -879,6 +879,7 @@ PRO qsfit_ignore_data_on_missing_lines
         ENDIF
      ENDIF
   ENDFOR
+  gfit_prepare_eval
 END
 
 
@@ -2889,9 +2890,7 @@ FUNCTION qsfit, input, OUTNAME=outname, PROCID=procid, TICTOC=tictoc, RESAMPLE=r
      IF (iresample GT 1) THEN BEGIN
         ;;Re-sample data set
         IF (gn(seed) EQ 0) THEN seed = procid
-        ;gfit.obs.(0).data.(0).y += gfit.obs.(0).data.(0).e * RANDOMN(seed, gn(gfit.obs.(0).data.(0).y))
-        tmp = WHERE( gfit.obs.(0).data.(0).group GE 0 )
-        gfit.obs.(0).data.(0).y[tmp] = all_res[0].gfit.obs.(0).eval.m + gfit.obs.(0).data.(0).e[tmp] * RANDOMN(seed, gn(tmp))
+        gfit.obs.(0).eval.y = all_res[0].gfit.obs.(0).eval.m + gfit.obs.(0).eval.e * RANDOMN(seed, gn(gfit.obs.(0).eval.x))
      ENDIF
 
      ;;Run QSFIT analysis and reduce results
