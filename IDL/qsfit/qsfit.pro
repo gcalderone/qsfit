@@ -88,7 +88,10 @@ PRO qsfit_prepare_options, DEFAULT=default
 
         ;; The minimum wavelength used during fit.  Smaller
         ;; wavelengths are ignored.
-        min_wavelength: 1210       $
+        min_wavelength: 1210,      $
+
+        ;; Compatibility with QSFit 1.2.4
+        compat124: 1b              $
   }
 
   IF (exists) THEN $
@@ -130,7 +133,6 @@ PRO qsfit_log, msg, out=out
      collected = LIST()
      RETURN
   ENDIF
-
 
   IF (N_PARAMS() EQ 0) THEN msg = ''
 
@@ -326,7 +328,6 @@ FUNCTION qsfit_input, x, y, e, TYPE=type, ID=id, Z=z, EBV=ebv
   ;;Save median flux and error
   udata.median_y = MEDIAN(yy[iGood])
   udata.median_e = MEDIAN(ee[iGood])
-
   RETURN, udata
 END
 
@@ -346,9 +347,11 @@ PRO qsfit_add_data, in
   IF (in.goodFrac LT 0.5) THEN $
      MESSAGE, 'Only ' + gn2s(in.goodFrac*100.) + '% spectrum channels have "good" mask flag'
   qsfit_log, 'Fraction of "good" channels: ' +  gn2s(in.goodFrac*100.) + '%'
-  qsfit_log
 
   IF (in.z GT 0) THEN BEGIN
+     qsfit_log, '  z=' + STRING(FORMAT=gcfmt('%-30.15f'), in.z)
+     qsfit_log, 'ebv=' + STRING(FORMAT=gcfmt('%-30.15f'), in.ebv)
+
      ;;Transform to rest frame.  Final units are:
      ;;xx     : AA
      ;;yy, ee : 10^42 erg s^-1 AA^-1
@@ -1051,8 +1054,15 @@ PRO qsfit_add_lineset
   gfit.obs.(0).aux.expr_Unknown.plot.gp = 'w line ls 1 lw 1 lt rgb "purple"'
 
   ;;Tie narrow components (CUSTOMIZABLE)
-  qsfit_log, 'The velocity offsets of [OIII4959] and [OIII5007] are tied'
-  gfit.comp.na_OIII_4959.par.v_off.tied = 'na_OIII_5007_v_off'
+  IF (gfit.comp.na_OIII_5007.enabled) THEN BEGIN
+     qsfit_log, 'The velocity offsets of [OIII4959] and [OIII5007] are tied'
+     gfit.comp.na_OIII_4959.par.v_off.tied = 'na_OIII_5007_v_off'
+  ENDIF $
+  ELSE BEGIN
+     IF (!QSFIT_OPT.compat124) THEN BEGIN
+        gfit.comp.na_OIII_4959.par.v_off.tied = '0'
+     ENDIF
+  ENDELSE
 
   qsfit_compile
 END
@@ -1572,7 +1582,7 @@ FUNCTION qsfit_reduce_line, cname, wave, NOASSOC=noassoc
               ENDIF
            ENDFOR
 
-           emline = [emline, gfit.comp.par.(ii)]
+           emline = [emline, gfit.comp.(ii)]
         ENDIF $
         ELSE BEGIN
            ;;Non-associated components are disabled and their value
@@ -1584,21 +1594,20 @@ FUNCTION qsfit_reduce_line, cname, wave, NOASSOC=noassoc
 
      ;;There must be at least one associated line with reliable
      ;;uncertainty
-     ii = WHERE(FINITE(emline.norm.err))
+     ii = WHERE(FINITE(emline.par.norm.err))
      gassert, ii[0] NE -1
      emline = emline[ii]
 
      ;;Create a model expression for the sum of all associated lines
-     gfit_add_aux, 'assoc_sum', 'gfit.obs.(0).eval.' + STRJOIN((TAG_NAMES(gfit.comp))[assoc], ' + ')
+     gfit_add_aux, 'assoc_sum', STRJOIN('cc.' + (TAG_NAMES(gfit.comp))[assoc], ' + ')
      qsfit_compile
-     gfit_run, /eval;, expr=sum
-     sum = sum.(0).(N_TAGS(sum.(0))-1)
+     gfit_run, /eval
+     sum = gfit.obs.(0).eval.aux.assoc_sum
 
      ;;Log parameters of individual components
      qsfit_log, 'Line ' + cname + ' (wavelength=' + gn2s(wave) + ')' $
                + '  is modeled with ' + gn2s(gn(assoc)) + ' components:'
-     par = gfit_get_par(compenabled)
-     par = par[WHERE(compenabled)]
+     par = gfit_get_par()
      gps, par, out=tmp
      qsfit_log, tmp
      qsfit_log
@@ -1609,19 +1618,19 @@ FUNCTION qsfit_reduce_line, cname, wave, NOASSOC=noassoc
      IF (gtype(res) EQ 'STRUCT') THEN BEGIN
         line.ncomp   = gn(assoc)
 
-        weight = emline.norm.val
+        weight = emline.par.norm.val
         weight /= TOTAL(weight)
-        line.lum     = TOTAL(emline.norm.val)
-        line.lum_err = TOTAL(weight * emline.norm.err)
+        line.lum     = TOTAL(emline.par.norm.val)
+        line.lum_err = TOTAL(weight * emline.par.norm.err)
         line.fwhm    = res.fwhm * 3.e5
         line.voff    = res.voff * 3.e5
 
         ;;Estimate errors on associated lines by weighting errors on
         ;;individual components
-        err = emline.fwhm.err
+        err = emline.par.fwhm.err
         ii = WHERE(err GT 0)
         IF (ii[0] NE -1) THEN BEGIN
-           weight = emline[ii].norm.val
+           weight = emline[ii].par.norm.val
            weight /= TOTAL(weight)
            line.fwhm_err = TOTAL(err[ii] * weight)
         ENDIF $
@@ -1630,10 +1639,10 @@ FUNCTION qsfit_reduce_line, cname, wave, NOASSOC=noassoc
            line.fwhm_err = gnan()
         ENDELSE
 
-        err = emline.v_off.err
+        err = emline.par.v_off.err
         ii = WHERE(err GT 0)
         IF (ii[0] NE -1) THEN BEGIN
-           weight = emline[ii].norm.val
+           weight = emline[ii].par.norm.val
            weight /= TOTAL(weight)
            line.voff_err = TOTAL(err[ii] * weight)
         ENDIF $
@@ -1858,8 +1867,8 @@ FUNCTION qsfit_reduce
            opt:           !QSFIT_OPT                                  , $
            file_output:   ''                                          , $
            gfit:          gfit                                        , $
-           expr:          gfit.obs.(0).eval.aux                        , $
-           ndata:         gn(gfit.obs.(0).eval.x)                      , $
+           expr:          gfit.obs.(0).eval.aux                       , $
+           ndata:         gn(gfit.obs.(0).eval.x)                     , $
            good_fraction: gfit.obs.(0).data.(0).udata.goodFrac        , $
            median_flux:   FLOAT(gfit.obs.(0).data.(0).udata.median_y) , $
            median_err:    FLOAT(gfit.obs.(0).data.(0).udata.median_e)   $
@@ -2100,8 +2109,6 @@ FUNCTION qsfit_reduce
      ENDFOR
   ENDIF
 
-
-
   ;;Result structure
   iron = { lum:         gfit.comp.ironopt.par.norm_br.val, $
            lum_err:     gfit.comp.ironopt.par.norm_br.err, $
@@ -2140,14 +2147,16 @@ FUNCTION qsfit_reduce
      FOR iiunk=1, !QSFIT_OPT.unkLines DO BEGIN
         iunk = WHERE(TAG_NAMES(gfit.comp) EQ 'UNK' + gn2s(iiunk))
         gassert, iunk NE -1
-        IF ((gfit.comp.(iunk).par.center.val GT 4460 AND gfit.comp.(iunk).par.center.val LT 4680)  OR   $
-            (gfit.comp.(iunk).par.center.val GT 5150 AND gfit.comp.(iunk).par.center.val LT 5520)       $
-           ) THEN BEGIN
-           IF ((gfit.comp.(iunk).par.norm.val GT 0)  AND  $
-               (gfit.comp.(iunk).par.norm.err GT 0)) THEN BEGIN
-              iron.unk_count   += 1
-              iron.unk_lum     += gfit.comp.(iunk).par.norm.val
-              iron.unk_lum_err += gfit.comp.(iunk).par.norm.err
+        IF (gfit.comp.(iunk).enabled) THEN BEGIN
+           IF ((gfit.comp.(iunk).par.center.val GT 4460 AND gfit.comp.(iunk).par.center.val LT 4680)  OR   $
+               (gfit.comp.(iunk).par.center.val GT 5150 AND gfit.comp.(iunk).par.center.val LT 5520)       $
+              ) THEN BEGIN
+              IF ((gfit.comp.(iunk).par.norm.val GT 0)  AND  $
+                  (gfit.comp.(iunk).par.norm.err GT 0)) THEN BEGIN
+                 iron.unk_count   += 1
+                 iron.unk_lum     += gfit.comp.(iunk).par.norm.val
+                 iron.unk_lum_err += gfit.comp.(iunk).par.norm.err
+              ENDIF
            ENDIF
         ENDIF
      ENDFOR
@@ -2372,7 +2381,10 @@ END
 PRO qsfit_show_step, filename
   COMMON GFIT
   ;filename = []
+
   IF (~!QSFIT_OPT.show_step) THEN RETURN
+  gfit_report
+  gkey
 
   title = gfit.obs.(0).plot.title
   rebin = gfit.obs.(0).plot.rebin
@@ -2391,8 +2403,6 @@ PRO qsfit_show_step, filename
 
   gfit.obs.(0).plot.title = title
   gfit.obs.(0).plot.rebin = rebin
-  ;gfit_report
-  ;gkey
 END
 
 ;=====================================================================
@@ -2430,7 +2440,8 @@ PRO qsfit_run
 
   ;;Fit iron templates
   qsfit_add_iron
-  IF (gn(gfit_get_par()) GT 0) THEN $
+  tmp = gfit_get_par()
+  IF (gsearch(tmp.fixed EQ 0  AND  tmp.tied EQ '')) THEN $
      gfit_run
   qsfit_show_step, 'Step3'
   qsfit_freeze, iron=1
@@ -2469,10 +2480,22 @@ PRO qsfit_run
      FOR iiunk=1, !QSFIT_OPT.unkLines DO BEGIN
         iunk = WHERE(TAG_NAMES(gfit.comp) EQ 'UNK' + gn2s(iiunk))
         gassert, iunk NE -1
-        IF (gfit.comp.(iunk).par.norm.err / gfit.comp.(iunk).par.norm.val GT 3) THEN BEGIN
-           rerun = 1
+        IF (~gfit.comp.(iunk).enabled) THEN CONTINUE
+        
+        IF (gfit.comp.(iunk).par.norm.val EQ 0.) THEN BEGIN
+           IF (!QSFIT_OPT.compat124) THEN BEGIN
+           ENDIF $
+           ELSE BEGIN
+              gfit.comp.(iunk).enabled = 0
+           ENDELSE
+        ENDIF $
+        ELSE BEGIN
+           IF (gfit.comp.(iunk).par.norm.err / gfit.comp.(iunk).par.norm.val GT 3) THEN $
+              gfit.comp.(iunk).enabled = 0
+        ENDELSE
+        IF (~gfit.comp.(iunk).enabled) THEN BEGIN
            qsfit_log, 'Disabling line ' + (TAG_NAMES(gfit.comp))[iunk]
-           gfit.comp.(iunk).enabled = 0
+           rerun = 1           
         ENDIF
      ENDFOR
 
@@ -2836,33 +2859,27 @@ FUNCTION qsfit, input, OUTNAME=outname, PROCID=procid, TICTOC=tictoc, RESAMPLE=r
      ;;Log input parameters
      gprint, '********************************************************************************'
      qsfit_log, 'QSFIT, ver. ' + qsfit_version()
-     qsfit_log, '  started at ' + SYSTIME()
-     IF (resample GT 1) THEN $
-        qsfit_log, "Resampling sequence: " + gn2s(iresample) + " / " + gn2s(resample)
-     qsfit_log
-     IF (KEYWORD_SET(outname)) THEN BEGIN
-        qsfit_log, 'Output file  : ' + file_dat
-        qsfit_log, 'Log file     : ' + file_log
-     ENDIF
-     qsfit_log
-
-     IF (KEYWORD_SET(extra)) THEN BEGIN
-        qsfit_log, 'Extra keywords:'
-        FOR i=0, N_TAGS(extra)-1 DO BEGIN
-           s = (TAG_NAMES(extra))[i] + '='
-           IF (gtype(extra.(i), /float)) THEN $
-              s += STRTRIM(STRING(FORMAT=gcfmt('%30.15fd'), extra.(i)), 2) $
-           ELSE $
-              s += STRING(extra.(i))
-           qsfit_log, s
-        ENDFOR
-     ENDIF
+     qsfit_log, '  started: ' + SYSTIME()
      qsfit_log
 
      ;;Load data into GFIT
      gfit_init
-     FOR i=0, gn(input)-1 DO $
+     FOR i=0, gn(input)-1 DO BEGIN
+        qsfit_log, 'ID: ' + input[i].id
         qsfit_add_data, input[i]
+     ENDFOR
+     qsfit_log
+
+     IF (resample GT 1) THEN BEGIN
+        qsfit_log, "Resampling sequence: " + gn2s(iresample) + " / " + gn2s(resample)
+        qsfit_log
+     ENDIF
+
+     IF (KEYWORD_SET(outname)) THEN BEGIN
+        qsfit_log, 'Output file  : ' + file_dat
+        qsfit_log, 'Log file     : ' + file_log
+        qsfit_log
+     ENDIF
 
      ;;Set Process ID
      gfit.opt.pid = 0

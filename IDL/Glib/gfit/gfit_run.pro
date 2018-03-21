@@ -88,17 +88,13 @@ PRO gfit_run, EVAL=eval
                , MAXITER=maxiter                               $
                , FTOL=gfit.opt.tol, XTOL=gfit.opt.tol          $
                , NPRINT=1)
-     ;gps, par
-     ;print, pval, status
-     ;gkey
+  gfit.res.mpfit_status = status
+  ;;gps, par
+  ;;print, pval, status
+  ;;gkey
 
   IF (status EQ 5) THEN $
      MESSAGE, 'The maximum number of iterations has been reached'
-
-  ;;Save parameter's values and errors
-  gfit_set_parval, pval, perr
-  gfit.res.mpfit_status = status
-  gfit.res.fit_stat = fitstat
 
   ;;Ensure we print a newline since iterpoc only prints carriage return
   IF (gfit.opt.log_iter) THEN PRINT
@@ -118,6 +114,10 @@ PRO gfit_run, EVAL=eval
         MESSAGE, 'Routine mpfit reported an error: ' + errmsg
      ENDELSE
   ENDIF
+
+  ;;Save parameter's values and errors
+  gfit_set_parval, pval, perr
+  gfit.res.fit_stat = fitstat
 
   gfit.res.test_stat = gfit.res.fit_stat
   gfit.res.test_dof  = dof

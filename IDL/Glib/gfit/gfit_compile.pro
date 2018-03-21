@@ -157,7 +157,7 @@ PRO gfit_compile
 
   ;;Drop tied parameters
   IF (~gsearch(par.tied EQ '', i)) THEN $
-     MESSAGE, 'ALl parameters are tied'
+     MESSAGE, 'All parameters are tied'
   par = par[i]
 
   ;;Loop through observations
@@ -196,7 +196,7 @@ PRO gfit_compile
         npar += cc.npar
      ENDFOR
      PRINTF, lun
-     cachePar = FLTARR(npar)
+     cachePar = REPLICATE(gnan(), npar)
      
      ;;Model evaluation
      PRINTF, lun, '  cc.m = ' + obs.expr
@@ -236,7 +236,7 @@ PRO gfit_compile
 
   ;;Test the new routines
   gfit_run, /eval
-
+  
   ;;File is no longer needed 
   FILE_DELETE, 'mpfit_eval_model' + gn2s(gfit.opt.pid) + '.pro', /allow
 END

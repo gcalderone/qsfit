@@ -1,3 +1,21 @@
+- Mar. 21, 2018  (ver. 1.3.0)
+
+	+ This release implements a new feature which allows to fit
+	multiple spectra simultaneously, against either a single or
+	multiple model expressions.  Also, this release is significantly
+	faster (35-40%) than the previous one;
+
+	+ The code has been largely refactored to implement the new
+	features, but the results are identical to the previous version
+	(v1.2.4) within the numerical accuracy, provided the
+	!QSFIT_OPT.compat124 variable is set to 1.  By setting this
+	variable to zero a few, minor, bugfix will come into play which
+	may affect the results in a few cases.  The differences are
+	however expected to be smaller than the quoted uncertainties;
+
+	+ The calling sequence has changed to accomodate the new features,
+	see the USAGE file for an example.
+
 - Mar. 03, 2018  (ver. 1.2.4)
 	+ All calculations are now forced to be done with DOUBLE precision.
 	This ensure the reproducibility of the results regardless of the

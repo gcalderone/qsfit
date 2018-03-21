@@ -17,6 +17,7 @@ PRO gfit_prepare_eval
      MESSAGE, 'No observation available.'
 
   ;;Prepare the EVAL structure
+  cachePar = []
   FOR iobs=0, N_TAGS(gfit.obs)-1 DO BEGIN
      obs = gfit.obs.(iobs)
      nn = 0
@@ -26,7 +27,6 @@ PRO gfit_prepare_eval
            MESSAGE, 'No good data on obs. ' + gn2s(iobs) + ', dataset ' + gn2s(idata)
         nn += gn(i)
      ENDFOR
-
 
      tmp = { x: FLTARR(nn),  $
              y: FLTARR(nn),  $
@@ -40,10 +40,16 @@ PRO gfit_prepare_eval
            val = REPLICATE(gnan(), nn)
            IF (~gfit.comp.(icomp).enabled) THEN $
               val = gfit.comp.(icomp).disabled_val
-           IF (cnames[icomp] EQ 'BALMER') THEN $
-              tmp = CREATE_STRUCT(tmp, cnames[icomp], DOUBLE(val)) $
-           ELSE $
+
+           IF (!QSFIT_OPT.compat124) THEN BEGIN
+              IF (cnames[icomp] EQ 'BALMER') THEN $
+                 tmp = CREATE_STRUCT(tmp, cnames[icomp], DOUBLE(val)) $
+              ELSE $
+                 tmp = CREATE_STRUCT(tmp, cnames[icomp], FLOAT(val))
+           ENDIF $
+           ELSE BEGIN
               tmp = CREATE_STRUCT(tmp, cnames[icomp], FLOAT(val))
+           ENDELSE
         ENDFOR
      ENDIF
 
