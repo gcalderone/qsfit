@@ -879,7 +879,6 @@ PRO qsfit_ignore_data_on_missing_lines
         ENDIF
      ENDIF
   ENDFOR
-  gfit_prepare_eval
 END
 
 
