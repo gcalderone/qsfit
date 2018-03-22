@@ -61,7 +61,7 @@ PRO gfit_prepare_eval
         aux = 0
      tmp = CREATE_STRUCT(tmp, 'aux', aux)
 
-     nn = 0
+     nn = 0l
      FOR idata=0, N_TAGS(obs.data)-1 DO BEGIN
         i = WHERE(obs.data.(idata).group GT 0)
         tmp.x[nn:nn+gn(i)-1] = obs.data.(idata).x[i]
