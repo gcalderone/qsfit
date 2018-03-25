@@ -73,9 +73,9 @@ PRO gfit_add_data, x, y, e, UDATA=udata, GROUP=group, IOBS=iobs
             e: FLOAT(e) ,  $
             group: group,  $
             udata: udata,  $
-            plot: { enable:   1b    , $                               ;;Enable (1) or disable (0) the plot of this expression.
-                    label:    'Data' + gn2s(id), $                    ;;Label shown in plot legend.
-                    gp:       'with yerrorbars pt 0 lt rgb "black"' $ ;;Gnuplot format
+            plot: { enable:   1b    , $   ;;Enable (1) or disable (0) the plot of this expression.
+                    label:    'Data' + gn2s(id), $                   ;;Label shown in plot legend.
+                    gp:       'pt 0 lt rgb "black"' $                ;;Gnuplot format
                   } $
          }
 

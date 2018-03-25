@@ -321,7 +321,8 @@ FUNCTION qsfit_input, x, y, e, TYPE=type, ID=id, Z=z, EBV=ebv
            opt: !QSFIT_OPT    , $
            goodFrac: gnan()   , $
            median_y: gnan()   , $
-           median_e: gnan()     $
+           median_e: gnan()   , $
+           plot: { label: 'Data', gp: ''} $
           }
 
   iGood = WHERE(good)
@@ -376,7 +377,9 @@ PRO qsfit_add_data, in
   ;;Setup appropriate titles for plot
   gfit.obs.(0).plot.title = in.file + ', z=' + gn2s(in.z) + ', E(B-V)=' + gn2s(in.ebv)
   gfit.obs.(0).plot.rebin = 1
-  gfit.obs.(0).data.(0).plot.label = 'Data'
+  i = N_TAGS(gfit.obs.(0).data)
+  gfit.obs.(0).data.(i-1).plot.label = in.plot.label
+  gfit.obs.(0).data.(i-1).plot.gp    = in.plot.gp
 
   ;;angstrom = '!6!sA!r!u!9 %!6!n'
   gfit.obs.(0).plot.xtit  = 'Rest frame wavelength [A]'

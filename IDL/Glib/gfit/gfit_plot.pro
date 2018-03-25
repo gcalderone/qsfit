@@ -65,12 +65,11 @@ PRO gfit_plot, OBS=iobs
      gfit_rebin, obs.plot.rebin, x, y, e
      name = 'd' + gn2s(iobs) + '_' + gn2s(i)
      ggp_data, name=name, x, y, e
-     ggp_plot, '$' + name + ' title "' + plot.label + '" ' + plot.gp
+     ggp_plot, '$' + name + ' title "' + plot.label + '" w yerrorbars ' + plot.gp
   ENDFOR
 
   ;;Plot model
   ggp_data, name='model', obs.eval.x, obs.eval.m
-  IF (obs.plot.gp EQ "") THEN obs.plot.gp = "with line"
   ggp_plot, '$model title "' + obs.plot.label + '" ' + obs.plot.gp
 
   ;;Plot auxiliary expressions
