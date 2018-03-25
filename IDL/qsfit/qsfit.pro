@@ -142,6 +142,11 @@ PRO qsfit_log, msg, out=out
 END
 
 
+FUNCTION qsfit_cosmology
+  cosmo = {H0: 70., Omega_m:0.3, Lambda0:0.7 } ;;S11
+  RETURN, cosmo
+END
+
 
 ;=====================================================================
 ;NAME:
@@ -191,7 +196,7 @@ PRO qsfit_spec2restframe, x, y, e, z, ebv
   e *= (1.d + z)
 
   ;;Cosmology
-  cosmo = {H0: 70., Omega_m:0.3, Lambda0:0.7 } ;;S11
+  cosmo = qsfit_cosmology()
   qsfit_log, 'Cosmology: '
   gps, cosmo, out=tmp
   qsfit_log, tmp
@@ -2426,6 +2431,8 @@ PRO qsfit_run
 
   ;;Stop when relative difference in chi-squared is at most 1.e-6
   gfit.opt.tol = 1.e-6 ;;CUSTOMIZABLE
+
+  gfit_delete_cdata
 
   ;;Fit continuum and Balmer templates
   qsfit_add_continuum

@@ -67,6 +67,7 @@ PRO compile
   gcompile, /hold, path + 'trapzd.pro'
   gcompile, /hold, path + 'valid_num.pro'
   gcompile, /hold, path + 'zparcheck.pro'
+  gcompile, /hold, path + 'compare_struct.pro'
 
   ;;Compile GLIB and QSFIT packages
   gcompile_glib

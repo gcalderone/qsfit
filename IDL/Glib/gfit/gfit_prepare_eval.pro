@@ -21,17 +21,14 @@ PRO gfit_prepare_eval
   FOR iobs=0, N_TAGS(gfit.obs)-1 DO BEGIN
      obs = gfit.obs.(iobs)
      nn = 0l
-     FOR idata=0, N_TAGS(obs.data)-1 DO BEGIN
-        i = WHERE(obs.data.(idata).group GT 0)
-        IF (i[0] EQ -1) THEN $
-           MESSAGE, 'No good data on obs. ' + gn2s(iobs) + ', dataset ' + gn2s(idata)
-        nn += gn(i)
-     ENDFOR
+     FOR idata=0, N_TAGS(obs.data)-1 DO $
+        nn += gn(WHERE(obs.data.(idata).group GT 0, /null))
 
      tmp = { x: FLTARR(nn),  $
              y: FLTARR(nn),  $
              e: FLTARR(nn),  $
-             m: FLTARR(nn)   $
+             m: FLTARR(nn),  $
+             id: BYTARR(nn)  $
            }
      tmp.m = gnan()
      IF (N_TAGS(gfit.comp) GT 0) THEN BEGIN
@@ -63,17 +60,20 @@ PRO gfit_prepare_eval
 
      nn = 0l
      FOR idata=0, N_TAGS(obs.data)-1 DO BEGIN
-        i = WHERE(obs.data.(idata).group GT 0)
-        tmp.x[nn:nn+gn(i)-1] = obs.data.(idata).x[i]
-        tmp.y[nn:nn+gn(i)-1] = obs.data.(idata).y[i]
-        tmp.e[nn:nn+gn(i)-1] = obs.data.(idata).e[i]
-        nn += gn(i)
+        IF (gsearch(obs.data.(idata).group GT 0, i)) THEN BEGIN
+           tmp.x[nn:nn+gn(i)-1] = obs.data.(idata).x[i]
+           tmp.y[nn:nn+gn(i)-1] = obs.data.(idata).y[i]
+           tmp.e[nn:nn+gn(i)-1] = obs.data.(idata).e[i]
+           tmp.id[nn:nn+gn(i)-1] = idata
+           nn += gn(i)
+        ENDIF
      ENDFOR
 
      i = SORT(tmp.x)
      tmp.x = tmp.x[i]
      tmp.y = tmp.y[i]
      tmp.e = tmp.e[i]
+     tmp.id = tmp.id[i]
 
      obs = {expr: obs.expr, aux: obs.aux, data: obs.data, eval: tmp, plot: obs.plot}
      gfit_replace_obs, iobs, obs

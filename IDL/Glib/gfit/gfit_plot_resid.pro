@@ -50,17 +50,25 @@ PRO gfit_plot_resid, OBS=iobs
   ggp_cmd, 'set xrange [' + gn2s(MIN(obs.eval.x)) + ':' + gn2s(MAX(obs.eval.x)) + ']'
   IF (obs.plot.xlog) THEN ggp_cmd, 'set logscale x'
 
-  x = obs.eval.x
-  y = (obs.eval.y - obs.eval.m) / obs.eval.e
-  gfit_rebin, obs.plot.rebin, x, y
-  ggp_data, x, y, plot='w points notitle pt 1 ps 0.7 lc rgb "black"'
-  ;;ggp_data, eval.x, y, REPLICATE(1., gn(y)), plot='with yerrorbars notitle lt rgb "gray"'
+  FOR i=0, N_TAGS(obs.data)-1 DO BEGIN
+     plot = obs.data.(i).plot
+     IF (~plot.enable) THEN CONTINUE
+     IF (~gsearch(obs.eval.id EQ i, j)) THEN CONTINUE
+
+     x = obs.eval.x[j]
+     y = (obs.eval.y[j] - obs.eval.m[j]) / obs.eval.e[j]
+     gfit_rebin, obs.plot.rebin, x, y
+     ;;ggp_data, x, y, y*0.+1, plot='title "' + plot.label + '" ' + plot.gp
+     ggp_data, x, y, plot='w points notitle pt 1 ps 0.7 lc rgb "black"'
+     ;;ggp_data, x, y, Y*0.+1, plot='with yerrorbars notitle lt rgb "gray"'
+  ENDFOR
 
   ;;Horizontal "zero" line
   ggp_data, name='zero', gminmax(obs.eval.x), [0,0]
   ggp_plot, '$zero w line notitle dt 2 lw 2 lt rgb "orange"'
 
   ;;Cumulative reduced fit statistic
+  y = (obs.eval.y - obs.eval.m) / obs.eval.e
   fs = TOTAL(y^2., /cumulative) / gfit.res.test_dof
   ggp_cmd, 'set y2label "Cumulative {/Symbol c}^2_{red}"'
   ggp_cmd, 'set ytics nomirror'

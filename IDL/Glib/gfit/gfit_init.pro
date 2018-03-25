@@ -17,6 +17,20 @@
 ; *******************************************************************
 
 
+
+PRO gfit_delete_cdata
+  COMPILE_OPT IDL2
+  ON_ERROR, !glib.on_error
+  COMMON GFIT, gfit, gfit_cdata, gfit_wdev, cachePar
+  
+  FOR i=0, N_TAGS(gfit_cdata)-1 DO BEGIN
+     IF (PTR_VALID(gfit_cdata.(i))) THEN $
+        PTR_FREE, gfit_cdata.(i)
+  ENDFOR
+  gfit_cdata = {}
+END
+
+
 ;=====================================================================
 ;NAME:
 ;  gfit_init
@@ -32,11 +46,7 @@ PRO gfit_init
   ON_ERROR, !glib.on_error
   COMMON GFIT, gfit, gfit_cdata, gfit_wdev, cachePar
   
-  FOR i=0, N_TAGS(gfit_cdata)-1 DO BEGIN
-     IF (PTR_VALID(gfit_cdata.(i))) THEN $
-        PTR_FREE, gfit_cdata.(i)
-  ENDFOR
-  gfit_cdata = {}
+  gfit_delete_cdata
 
   gfit = { $
          opt: { pid:        0l    , $ 

@@ -183,5 +183,5 @@ options to each dataset, e.g.:
 
   IDL> res.gfit.obs.(0).data.(0).plot.label = 'Spectrum'
   IDL> res.gfit.obs.(0).data.(1).plot.label = 'Photometry'
-  IDL> res.gfit.obs.(0).data.(1).plot.gp = 'w yerrorbars pt 7 ps 2 lt rgb "green"'
+  IDL> res.gfit.obs.(0).data.(1).plot.gp = 'w yerrorbars pt 7 ps 2 lt rgb "dark-green"'
   IDL> qsfit_plot, res

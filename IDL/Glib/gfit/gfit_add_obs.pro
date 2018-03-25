@@ -59,7 +59,7 @@ PRO gfit_add_obs
                  title: 'notitle'     , $                            ;;Plot title.
                  xtit:  'X'           , $                            ;;Label for X axis.
                  ytit:  'Y'           , $                            ;;Label for Y axis.
-                 label: 'Model'+gn2s(id), $                          ;;Label for the obs
+                 label: 'Model'       , $                            ;;Label for the obs
                  gp: 'with line ls 1 dt 1 lw 2 lt rgb "orange"' $    ;;Gnuplot format for the obs
                 } $
         }

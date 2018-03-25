@@ -55,17 +55,17 @@ PRO gfit_plot, OBS=iobs
   IF (obs.plot.ylog) THEN ggp_cmd, 'set logscale y'
 
   FOR i=0, N_TAGS(obs.data)-1 DO BEGIN
-     d = obs.data.(i)
-     IF (~d.plot.enable) THEN CONTINUE
-     IF (~gsearch(d.group GT 0, j)) THEN CONTINUE
+     plot = obs.data.(i).plot
+     IF (~plot.enable) THEN CONTINUE
+     IF (~gsearch(obs.eval.id EQ i, j)) THEN CONTINUE
      
-     x = d.x[j]
-     y = d.y[j]
-     e = d.e[j]
+     x = obs.eval.x[j]
+     y = obs.eval.y[j]
+     e = obs.eval.e[j]
      gfit_rebin, obs.plot.rebin, x, y, e
      name = 'd' + gn2s(iobs) + '_' + gn2s(i)
      ggp_data, name=name, x, y, e
-     ggp_plot, '$' + name + ' title "' + d.plot.label + '" ' + d.plot.gp     
+     ggp_plot, '$' + name + ' title "' + plot.label + '" ' + plot.gp
   ENDFOR
 
   ;;Plot model

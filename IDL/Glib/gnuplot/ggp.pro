@@ -177,7 +177,7 @@ PRO ggp                             $
            SPAWN, 'cp ' + file_gp + ' ' + tmpFile
            ;;Special behaviour for the qt terminal
            ;gpcmd = 'xterm -geometry 30x5 -iconic -e "gnuplot ' + file_gp + ' -" &'
-           gpcmd = '(export LD_PRELOAD=""; gnuplot ' + tmpFile + ' -e "pause mouse close"; rm -f ' + tmpFile + ') &'
+           gpcmd = '(export LD_PRELOAD=""; gnuplot ' + tmpFile + ' -e "pause mouse close"; rm -f ' + tmpFile + ') >& /dev/null &'
            SPAWN, gpcmd
         ENDIF $
         ELSE BEGIN
