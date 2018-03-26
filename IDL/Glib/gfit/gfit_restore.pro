@@ -43,6 +43,7 @@ PRO gfit_restore, saved
 
   ;;Copy structure and compile
   gfit = saved
+  gfit_delete_cdata
   gfit_compile
   gfit = saved ;;this is needed since gfit_compile drops the RES structure
 END

@@ -346,9 +346,11 @@ PRO qsfit_add_data, in
   xx = in.x
   yy = in.y
   ee = in.e
-  tmp = xx - SHIFT(xx, 1)
-  tmp = tmp[1:*] / xx[1:*]
-  qsfit_log, 'Spectral resolution (min, max): ' + STRJOIN(gn2s(gminmax(tmp*3.e5)), ", ") + ' km s^-1'
+  IF (gn(xx) GT 2) THEN BEGIN
+     tmp = xx - SHIFT(xx, 1)
+     tmp = tmp[1:*] / xx[1:*]
+     qsfit_log, 'Spectral resolution (min, max): ' + STRJOIN(gn2s(gminmax(tmp*3.e5)), ", ") + ' km s^-1'
+  ENDIF
 
   IF (in.goodFrac LT 0.5) THEN $
      MESSAGE, 'Only ' + gn2s(in.goodFrac*100.) + '% spectrum channels have "good" mask flag'
@@ -375,7 +377,9 @@ PRO qsfit_add_data, in
   qsfit_ignore_data_on_missing_lines
 
   ;;Setup appropriate titles for plot
-  gfit.obs.(0).plot.title = in.file + ', z=' + gn2s(in.z) + ', E(B-V)=' + gn2s(in.ebv)
+  gfit.obs.(0).plot.title = gfit.obs.(0).data.(0).udata.file + $
+                            ', z=' + gn2s(gfit.obs.(0).data.(0).udata.z) + $
+                            ', E(B-V)=' + gn2s(gfit.obs.(0).data.(0).udata.ebv)
   gfit.obs.(0).plot.rebin = 1
   i = N_TAGS(gfit.obs.(0).data)
   gfit.obs.(0).data.(i-1).plot.label = in.plot.label
@@ -747,7 +751,6 @@ PRO qsfit_renormalize_cont
 
      residuals = (mm - yy) / ee
      check_fraction = gn(WHERE(residuals LT 0)) / FLOAT(gn(yy))
-
 
      IF (last_fraction EQ -1.) THEN $
         qsfit_log, 'Initial continuum norm. and fraction of negative residuals: ' + $
