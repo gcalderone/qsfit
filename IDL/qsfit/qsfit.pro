@@ -253,7 +253,9 @@ FUNCTION qsfit_input, x, y, e, TYPE=type, ID=id, Z=z, EBV=ebv
            ra = gfloat(STRMID(ra, 9))
            de = gfloat(STRMID(de, 9))
            EULER, ra, de, glon, glat, 1
-           ebv = CALL_FUNCTION('DUST_GETVAL', glon, glat, /interp, map='Ebv')
+           dummy = EXECUTE('dummy = DUST_GETVAL()')
+           maps = FILE_DIRNAME(ROUTINE_FILEPATH('DUST_GETVAL', /is_function)) + PATH_SEP() + 'maps' + PATH_SEP() 
+           ebv = CALL_FUNCTION('DUST_GETVAL', glon, glat, /interp, /verbose, ipath=maps, map='Ebv')
         ENDIF
 
         ;;Borders may be noisy, drop a few channels on both side
@@ -653,8 +655,8 @@ PRO qsfit_add_continuum
   gprint, '   Continuum'
   continuum = gfit_component('qsfit_comp_sbpowerlaw')
 
-  continuum.par.norm.val = MEAN(gfit.obs.(0).eval.y) / 2.
   continuum.par.norm.limits = [1.e-10, gnan()]
+  continuum.par.norm.val = (MEAN(gfit.obs.(0).eval.y) / 2.) > continuum.par.norm.limits[0]
 
   ;;Limit the value for x0 to ensure the change of slope occurs within
   ;;the wavelength range.

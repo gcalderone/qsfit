@@ -73,8 +73,11 @@ PRO gfit_run, EVAL=eval
   gfit.res.elapsed_time = gnan()
 
   par = gfit_get_par()
-  IF (gn(par) EQ 0) THEN $
-     MESSAGE, 'No free parameters in the model'
+  IF (~gsearch(par.tied EQ ''  AND  par.fixed EQ 0)) THEN BEGIN
+     PRINT, 'WARNING: No free parameters in the model'
+     RETURN
+  ENDIF
+
   IF (~gsearch(par.tied EQ '', i)) THEN $
      MESSAGE, 'All parameters are tied'
   par = par[i]
