@@ -43,29 +43,24 @@ PRO gfit_run, EVAL=eval
   ;;Measure elapsed time
   time = SYSTIME(1)
 
-  IF (PTR_VALID(gfit.res.covar)) THEN BEGIN
-     PTR_FREE, gfit.res.covar
-     gfit.res.covar = PTR_NEW()
-  ENDIF     
-
   IF (KEYWORD_SET(eval)) THEN BEGIN
      gfit.opt.evalAux = 1
 
      par = gfit_get_par()
-     IF (gn(par) EQ 0) THEN $
-        MESSAGE, 'No free parameters in the model'
-     IF (~gsearch(par.tied EQ '', i)) THEN $
-        MESSAGE, 'All parameters are tied'
-     par = par[i]
 
      dummy = mpfit_eval_model(par.val)
      gfit.res.fit_stat = TOTAL(gfit_wdev^2.d)
 
      gfit.res.test_stat = gfit.res.fit_stat
-     gfit.res.test_dof  = gn(gfit_wdev) - gn(WHERE(par.fixed EQ 0   AND  par.tied EQ '', /null))
+     gfit.res.test_dof  = gn(gfit_wdev) - gn(WHERE(par.fixed EQ 0, /null))
      gfit.res.test_prob = 1 - CHISQR_PDF(gfit.res.fit_stat, gfit.res.test_dof)
      RETURN
   ENDIF
+
+  IF (PTR_VALID(gfit.res.covar)) THEN BEGIN
+     PTR_FREE, gfit.res.covar
+     gfit.res.covar = PTR_NEW()
+  ENDIF     
 
   maxiter = 1e5
   gfit.opt.evalAux = 0
@@ -73,14 +68,11 @@ PRO gfit_run, EVAL=eval
   gfit.res.elapsed_time = gnan()
 
   par = gfit_get_par()
-  IF (~gsearch(par.tied EQ ''  AND  par.fixed EQ 0)) THEN BEGIN
+  IF (~gsearch(par.fixed EQ 0)) THEN  BEGIN
      PRINT, 'WARNING: No free parameters in the model'
      RETURN
   ENDIF
-
-  IF (~gsearch(par.tied EQ '', i)) THEN $
-     MESSAGE, 'All parameters are tied'
-  par = par[i]
+  par.expr = ''
 
   pval = MPFIT('mpfit_eval_model'                              $
                , ITERPROC='gfit_iterproc'                      $

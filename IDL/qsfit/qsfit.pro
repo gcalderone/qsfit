@@ -531,7 +531,7 @@ PRO qsfit_freeze, cont=cont, iron=iron, lines=lines
   COMPILE_OPT IDL2
   ON_ERROR, !glib.on_error
   COMMON GFIT
-
+     
   IF (N_ELEMENTS(cont) EQ 1) THEN BEGIN
      gfit.comp.continuum.par.norm.fixed = cont
      gfit.comp.continuum.par.x0.fixed   = 1
@@ -588,6 +588,8 @@ PRO qsfit_freeze, cont=cont, iron=iron, lines=lines
         gfit.comp.line_ha_base.par.norm.fixed = lines
         gfit.comp.line_ha_base.par.fwhm.fixed = lines
      ENDIF
+
+     gfit.comp.na_OIII_4959.par.v_off.fixed = 1
   ENDIF
 END
 
@@ -1069,11 +1071,13 @@ PRO qsfit_add_lineset
   ;;Tie narrow components (CUSTOMIZABLE)
   IF (gfit.comp.na_OIII_5007.enabled) THEN BEGIN
      qsfit_log, 'The velocity offsets of [OIII4959] and [OIII5007] are tied'
-     gfit.comp.na_OIII_4959.par.v_off.tied = 'na_OIII_5007_v_off'
+     gfit.comp.na_OIII_4959.par.v_off.expr = 'na_OIII_5007_v_off'
+     gfit.comp.na_OIII_4959.par.v_off.fixed = 1
   ENDIF $
   ELSE BEGIN
      IF (!QSFIT_OPT.compat124) THEN BEGIN
-        gfit.comp.na_OIII_4959.par.v_off.tied = '0'
+        gfit.comp.na_OIII_4959.par.v_off.expr = '0'
+        gfit.comp.na_OIII_4959.par.v_off.fixed = 1
      ENDIF
   ENDELSE
 
@@ -1586,7 +1590,7 @@ FUNCTION qsfit_reduce_line, cname, wave, NOASSOC=noassoc
 
            ;;Take care of tied parameters!
            FOR jj=0, gfit.comp.(ii).npar-1 DO BEGIN
-              tied = gfit.comp.(ii).par.(jj).tied
+              tied = gfit.comp.(ii).par.(jj).expr
               IF (tied NE '') THEN BEGIN
                  qsfit_log, 'WARNING: parameter ' + $
                            gfit.comp.(ii).par.(jj).comp + '.'  + $
@@ -2456,7 +2460,7 @@ PRO qsfit_run
   ;;Fit iron templates
   qsfit_add_iron
   tmp = gfit_get_par()
-  IF (gsearch(tmp.fixed EQ 0  AND  tmp.tied EQ '')) THEN $
+  IF (gsearch(tmp.fixed EQ 0  AND  tmp.expr EQ '')) THEN $
      gfit_run
   qsfit_show_step, 'Step3'
   qsfit_freeze, iron=1
@@ -2487,6 +2491,7 @@ PRO qsfit_run
   gfit.comp.ironopt.par.norm_na.fixed = 0 ;free narrow optical iron normizalization
   gfit_run
   qsfit_show_step, 'Step6'
+
 
   ;;Disable "unknown" lines whose normalization uncertainty is larger
   ;;than 3 times the normalization
@@ -2570,9 +2575,9 @@ PRO qsfit_report, red
   gprint
 
   gprint, 'Parameter covariance matrix (sorted by absolute value of covariance, down to covariance=0.5)'
-  ;;tmp = gfit_get_covar()
-  ;;tmp = tmp[WHERE(tmp.covar GT 0.5)]
-  ;;gps, tmp
+  tmp = gfit_get_covar()
+  tmp = tmp[WHERE(tmp.covar GT 0.5)]
+  gps, tmp
 
   gprint
   gprint

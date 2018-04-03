@@ -38,7 +38,7 @@ FUNCTION gfit_get_covar
   ON_ERROR, !glib.on_error
   COMMON GFIT
 
-  IF (gn(gfit.res.covar) EQ 1) THEN $
+  IF (~PTR_VALID(gfit.res.covar)) THEN $
      MESSAGE, 'The covariance matrix is not available.  Call gfit_run to fit the data and evaluate the matrix.'
 
   ;;Renormalize covariance matrix
@@ -48,7 +48,7 @@ FUNCTION gfit_get_covar
   izero = WHERE(perr EQ 0)
   perr[inan ] = 1.
   perr[izero] = 1.
-  covar = gfit.res.covar / perr
+  covar = *(gfit.res.covar) / perr
   covar[inan ] = gnan()
   covar[izero] = gnan()
 

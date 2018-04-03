@@ -23,7 +23,8 @@ PRO gfit_teststat_gauss, cmp
   COMMON GFIT
 
   chisq = TOTAL( ((cmp.y - cmp.m)^2 / cmp.e^2) )
-  dof = gn(cmp) - gn(gfit_get_par())
+  par = gfit_get_par()
+  dof = gn(cmp) - TOTAL(par.fixed)
 
   gfit.res.test_stat = chisq
   gfit.res.test_dof  = dof

@@ -54,7 +54,7 @@ PRO gfit_ex4
 
   ;;Constrain parameters
   gfit.comp.line2.par.norm.fixed   = 1                  ;;Fix
-  gfit.comp.line2.par.center.tied  = 'line1_center + 1' ;;Tie
+  gfit.comp.line2.par.center.expr  = 'line1_center + 1' ;;Tie
   gfit.comp.line2.par.sigma.limits = [0.1, 1]           ;;Limits
 
   ;;Run fit

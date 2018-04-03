@@ -189,7 +189,7 @@ PRO qsfit_comp_ironuv_init, comp
 
   comp.par.cont2350.val   = 1
   comp.par.cont2350.fixed = 1
-  comp.par.cont2350.tied  = 'qsfit_comp_sbpowerlaw_l2350()'
+  comp.par.cont2350.expr  = 'qsfit_comp_sbpowerlaw_l2350()'
 END
 
 

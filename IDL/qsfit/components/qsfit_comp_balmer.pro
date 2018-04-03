@@ -315,7 +315,7 @@ PRO qsfit_comp_balmer_init, comp
 
   comp.par.cont3000.val   = 1
   comp.par.cont3000.fixed = 1
-  comp.par.cont3000.tied  = 'qsfit_comp_sbpowerlaw_l3000()'
+  comp.par.cont3000.expr  = 'qsfit_comp_sbpowerlaw_l3000()'
 END
 
 

@@ -43,11 +43,6 @@ PRO gfit_set_parval, pval, perr
      IF (~gfit.comp.(i).enabled) THEN CONTINUE
      FOR j=0, gfit.comp.(i).npar-1 DO BEGIN
         par = gfit.comp.(i).par.(j)
-        IF (par.tied NE '') THEN BEGIN
-           par.val = gnan()
-           par.err = gnan()
-           CONTINUE
-        ENDIF
         par.val = pval[count]
         par.err = perr[count]
 

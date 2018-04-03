@@ -70,7 +70,7 @@ FUNCTION gfit_component, funcName
          limited: [0b, 0b]    , $    ;;For MPFIT internal use.
          limits:  gnan()*[1,1], $    ;;Lower and upper limits for the parameter value (NaN means no limit is applied).
          fixed:    0b         , $    ;;Whether parametr is fixed (1) or free (0) during the fitting process.
-         tied:     ''         , $    ;;Tie expression: an IDL mathematical expression to tie this parameter with other ones Parameters are specified as COMPONENT_NAME.PARAMETER_NAME.
+         expr:     ''         , $    ;;Tie expression: an IDL mathematical expression to tie this parameter with other ones Parameters are specified as COMPONENT_NAME.PARAMETER_NAME.
          step:     0.           $    ;;The minimum step between MPFIT iterations.
         }
   ppar = {}

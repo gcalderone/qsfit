@@ -16,6 +16,13 @@
 	+ The calling sequence has changed to accomodate the new features,
 	see the USAGE file for an example.
 
+	+ The `tied` field of the parameter structure has been renamed to
+	`expr`, and its purpose changed: when used with `fixed=0` it
+	allows to specify a mathematical expression (possibly involving
+	other parameters) evaluated before passing the result to the
+	component function.  When used with `fixed=0` it is used to tie
+	the value to other parameters (old behaviour);
+
 - Mar. 03, 2018  (ver. 1.2.4)
 	+ All calculations are now forced to be done with DOUBLE precision.
 	This ensure the reproducibility of the results regardless of the

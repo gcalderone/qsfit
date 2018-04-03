@@ -65,7 +65,7 @@ PRO gfit_report, ALL=all
   IF (KEYWORD_SET(all)) THEN $
      gprint, 'List of ALL parameters:' $
   ELSE BEGIN
-     IF (~gsearch(par.fixed EQ 0  AND  par.tied EQ '', i)) THEN RETURN
+     IF (~gsearch(par.fixed EQ 0, i)) THEN RETURN
      par = par[i]
      gprint, 'List of FREE parameters:'
   ENDELSE

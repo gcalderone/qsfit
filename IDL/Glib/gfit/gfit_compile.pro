@@ -101,8 +101,9 @@ PRO gfit_compile
 
   ;;Component names and parameters
   cnames = TAG_NAMES(gfit.comp)
-  allPar = gfit_get_par()
-  par = allPar
+  par = gfit_get_par()
+  IF (~gsearch(par.fixed EQ 0)) THEN $
+     MESSAGE, 'No free parameter in the model'
 
   ;;------------------------------------------------------------------
   ;; Prepare CDATA
@@ -137,28 +138,14 @@ PRO gfit_compile
   PRINTF, lun, '  ON_ERROR, !glib.on_error'
   PRINTF, lun, '  COMMON gfit'
   PRINTF, lun
-  dummy = gsearch(count=tmp, par.tied EQ '')
-  PRINTF, lun, '  IF (gn(par) NE ' + gn2s(tmp) + ') THEN BEGIN'
-  PRINTF, lun, '    PRINT, gn(par), ', gn2s(tmp)
-  PRINTF, lun, '    STOP'
-  PRINTF, lun, '  ENDIF'
-  ;PRINTF, lun, '  HELP, par'
-  PRINTF, lun
 
   PRINTF, lun, '  ;; Parameters'
   count = 0
   FOR ipar=0, gn(par)-1 DO BEGIN
-     IF (par[ipar].tied NE '') THEN CONTINUE
-     
      tmp = '  ' + par[ipar].comp + '_' + par[ipar].parname
      PRINTF, lun, tmp + ' = par[' + gn2s(count) + ']'
      count += 1
   ENDFOR
-
-  ;;Drop tied parameters
-  IF (~gsearch(par.tied EQ '', i)) THEN $
-     MESSAGE, 'All parameters are tied'
-  par = par[i]
 
   ;;Loop through observations
   cachePar = []
@@ -173,12 +160,13 @@ PRO gfit_compile
      FOR icomp=0, N_TAGS(gfit.comp)-1 DO BEGIN
         cc = gfit.comp.(icomp)
         IF (cc.enabled) THEN BEGIN
-           IF (gsearch(STRUPCASE(allPar.comp) EQ cnames[icomp]  AND  allPar.tied NE '', ipar)) THEN BEGIN
-              tmp1 = allPar[ipar].comp + '_' + allPar[ipar].parname + ' = ' + allPar[ipar].tied
-              tmp2 = 'gfit.comp.' + allPar[ipar].comp + '.par.' + allPar[ipar].parname + '.val = ' + allPar[ipar].comp + '_' + allPar[ipar].parname
-              PRINTF, lun, '  ' + tmp1
-              PRINTF, lun, '  ' + tmp2
-           ENDIF
+           FOR ipar=0, N_TAGS(cc.par)-1 DO BEGIN
+              pp = cc.par.(ipar)
+              IF (pp.expr EQ '') THEN CONTINUE
+              PRINTF, lun, '  ' + pp.comp + '_' + pp.parname + ' = ' + pp.expr
+              IF (pp.fixed EQ 1) THEN $
+                 PRINTF, lun, '  gfit.comp.' + pp.comp + '.par.' + pp.parname + '.val = ' + pp.comp + '_' + pp.parname
+           ENDFOR
 
            ;;Evaluate component values for each X
            aa = '  cc.' + cnames[icomp] + ' = ' + cc.funcName + '(cc.x'
