@@ -164,8 +164,8 @@ PRO gfit_compile
               pp = cc.par.(ipar)
               IF (pp.expr EQ '') THEN CONTINUE
               PRINTF, lun, '  ' + pp.comp + '_' + pp.parname + ' = ' + pp.expr
-              IF (pp.fixed EQ 1) THEN $
-                 PRINTF, lun, '  gfit.comp.' + pp.comp + '.par.' + pp.parname + '.val = ' + pp.comp + '_' + pp.parname
+              ;; IF (pp.fixed EQ 1) THEN $
+              ;;    PRINTF, lun, '  gfit.comp.' + pp.comp + '.par.' + pp.parname + '.val = ' + pp.comp + '_' + pp.parname
            ENDFOR
 
            ;;Evaluate component values for each X
@@ -226,5 +226,6 @@ PRO gfit_compile
   gfit_run, /eval
   
   ;;File is no longer needed 
-  FILE_DELETE, 'mpfit_eval_model' + gn2s(gfit.opt.pid) + '.pro', /allow
+  IF (!glib.on_error NE 0) THEN $
+     FILE_DELETE, 'mpfit_eval_model' + gn2s(gfit.opt.pid) + '.pro', /allow
 END

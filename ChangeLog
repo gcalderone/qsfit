@@ -23,6 +23,13 @@
 	component function.  When used with `fixed=0` it is used to tie
 	the value to other parameters (old behaviour);
 
+	+ A new emissione line component has been added to account for the
+	[OIII]5007 blue wing.  It is constrained to have a FWHM larger
+	than the main [OIII]5007 by an amount in the range 100,1000 km/s,
+	and a blue velocity shift in the range 0,2000 km/s with the
+	respect to the main line.  The name f this new component is
+	`line_oiii_bw`;
+
 - Mar. 03, 2018  (ver. 1.2.4)
 	+ All calculations are now forced to be done with DOUBLE precision.
 	This ensure the reproducibility of the results regardless of the
