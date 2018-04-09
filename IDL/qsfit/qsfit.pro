@@ -176,7 +176,13 @@ END
 ;  EBV (input, a scalar number)
 ;    The source colour excess
 ;
-PRO qsfit_spec2restframe, x, y, e, z, ebv
+;  FLUX2LUM (output, a scalar number)
+;    The multiplication factor between observed flux (10^-17 erg s^-1
+;    cm^-2 A^-1) and isotropic emitted luminosity density (10^42 erg
+;    s^-1 A^-1).
+
+
+PRO qsfit_spec2restframe, x, y, e, z, ebv, flux2lum
   COMPILE_OPT IDL2
   ON_ERROR, !glib.on_error
 
@@ -324,6 +330,7 @@ FUNCTION qsfit_input, x, y, e, TYPE=type, ID=id, Z=z, EBV=ebv
            goodFrac: gnan()   , $
            median_y: gnan()   , $
            median_e: gnan()   , $
+           flux2lum: gnan()   , $
            plot: { label: 'Data', gp: ''} $
           }
 
@@ -365,7 +372,8 @@ PRO qsfit_add_data, in
      ;;Transform to rest frame.  Final units are:
      ;;xx     : AA
      ;;yy, ee : 10^42 erg s^-1 AA^-1
-     qsfit_spec2restframe, xx, yy, ee, in.z, in.ebv
+     qsfit_spec2restframe, xx, yy, ee, in.z, in.ebv, flux2lum
+     in.flux2lum = flux2lum
   ENDIF
 
   ;;Add data into GFIT
