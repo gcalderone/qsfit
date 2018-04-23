@@ -46,12 +46,12 @@
 
 ;=====================================================================
 PRO gfit_comp_powerlaw_init, comp
-  comp.norm.val  =  1
+  comp.par.norm.val  =  1
   
-  comp.x0.val    =  1
-  comp.x0.fixed  =  1           ;;this is strongly correlated with norm
+  comp.par.x0.val    =  1
+  comp.par.x0.fixed  =  1           ;;this is strongly correlated with norm
      
-  comp.index.val = -1
+  comp.par.index.val = -1
 END
 
 ;=====================================================================
