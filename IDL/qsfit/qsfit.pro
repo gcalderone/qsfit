@@ -88,10 +88,21 @@ PRO qsfit_prepare_options, DEFAULT=default
 
         ;; The minimum wavelength used during fit.  Smaller
         ;; wavelengths are ignored.
-        min_wavelength: 1210,      $
+        min_wavelength: 920,      $
 
         ;; Compatibility with QSFit 1.2.4
-        compat124: 1b              $
+        compat124: 1b,             $
+
+        ;; If 1 use Lorentzian (rather than Gaussian) profiles for
+        ;; emission lines
+        lorentzian: 1b,            $
+
+        ;; If 1 tie the FWHM of broad component to be larger than the
+        ;; FWHM of the associated narrow line
+        bn_Fwhmtied: 1b,           $
+
+        ;; If 1 use consider multiplicative absorption beyond 1216AA
+        multiplicative_absorption: 1b  $
   }
 
   IF (exists) THEN $
@@ -143,7 +154,8 @@ END
 
 
 FUNCTION qsfit_cosmology
-  cosmo = {H0: 70., Omega_m:0.3, Lambda0:0.7 } ;;S11
+  cosmo = {H0: 70., Omega_m:0.3, Lambda0:0.7 }   ;;S11
+  ;;cosmo = {H0: 71., Omega_m:0.27, Lambda0:0.73 } ;;Calderone et al. 2013
   RETURN, cosmo
 END
 
@@ -551,7 +563,6 @@ PRO qsfit_freeze, cont=cont, iron=iron, lines=lines
         ;;gfit.comp.continuum.par.curv.fixed    = 1     ;;CUSTOMIZABLE
      ENDIF
 
-
      IF (gfit.comp.balmer.enabled   AND   $
          (gfit.obs.(0).data.(0).udata.z LT !QSFIT_OPT.balmer_fixed_min_z)) THEN BEGIN
         gfit.comp.balmer.par.norm.fixed = cont
@@ -560,6 +571,15 @@ PRO qsfit_freeze, cont=cont, iron=iron, lines=lines
         ;;gfit.comp.balmer.par.logTau.fixed = cont
         ;;gfit.comp.balmer.par.logNe.fixed = cont
         ;;gfit.comp.balmer.par.fwhm.fixed  = cont
+     ENDIF
+
+     IF (~!QSFIT_OPT.compat124) THEN BEGIN
+        IF (!QSFIT_OPT.multiplicative_absorption) THEN BEGIN
+           IF (MIN(gfit.obs.(0).eval.x) LE 1210) THEN BEGIN
+              gfit.comp.abs_slope.par.norm.fixed = cont
+              gfit.comp.abs_slope.par.slope.fixed = cont
+           ENDIF
+        ENDIF
      ENDIF
   ENDIF
 
@@ -639,6 +659,12 @@ PRO qsfit_compile
   expr = STRJOIN(cnames[i1], ' + ')
   IF (i2[0] NE -1) THEN $
      expr = '(1 - (' + STRJOIN(cnames[i2], ' + ') + ')) * (' + expr + ')'
+
+  IF (~!QSFIT_OPT.compat124) THEN BEGIN
+     IF (!QSFIT_OPT.multiplicative_absorption) THEN BEGIN
+        expr = "cc.abs_slope * (" + expr + ")"
+     ENDIF
+  ENDIF
 
   gfit.obs.(0).expr = expr
 
@@ -736,6 +762,20 @@ PRO qsfit_add_continuum
      gfit.comp.galaxy.enabled = 0
   ENDIF
 
+  IF (~!QSFIT_OPT.compat124) THEN BEGIN
+     IF (!QSFIT_OPT.multiplicative_absorption) THEN BEGIN
+        gprint, '   multabs'
+        abs_slope = gfit_component('qsfit_comp_contabsorption')
+        gfit_add_comp, 'Abs_slope', abs_slope
+        IF (MIN(gfit.obs.(0).eval.x) GT 1210) THEN BEGIN
+           gfit.comp.abs_slope.par.norm.val = 1
+           gfit.comp.abs_slope.par.norm.fixed = 1
+           gfit.comp.abs_slope.par.slope.val = 0
+           gfit.comp.abs_slope.par.slope.fixed = 1
+        ENDIF
+     ENDIF
+  ENDIF
+
   qsfit_compile
 END
 
@@ -830,8 +870,9 @@ FUNCTION qsfit_lineset
   ;; - https://ned.ipac.caltech.edu/level5/Netzer/Netzer2_1.html
   ;; - http://www.star.ucl.ac.uk/~msw/lines.html
   ;;str.name = 'OVI'         & str.wave = 1033.82   &  str.type = 'N'  & all.add, str
+    str.name = 'Lyb'         & str.wave = 1026.0    &  str.type = 'BN' & IF (str.wave GT !QSFIT_OPT.min_wavelength) THEN all.add, str
     str.name = 'Lya'         & str.wave = 1215.24   &  str.type = 'BN' & IF (str.wave GT !QSFIT_OPT.min_wavelength) THEN all.add, str
-    str.name = 'NV_1241'     & str.wave = 1240.81   &  str.type = 'B'  & IF (str.wave GT !QSFIT_OPT.min_wavelength) THEN all.add, str
+    str.name = 'NV_1241'     & str.wave = 1240.81   &  str.type = 'N'  & IF (str.wave GT !QSFIT_OPT.min_wavelength) THEN all.add, str
     str.name = 'OI_1306'     & str.wave = 1305.53   &  str.type = 'B'  & IF (str.wave GT !QSFIT_OPT.min_wavelength) THEN all.add, str
     str.name = 'CII_1335'    & str.wave = 1335.31   &  str.type = 'B'  & IF (str.wave GT !QSFIT_OPT.min_wavelength) THEN all.add, str
     str.name = 'SiIV_1400'   & str.wave = 1399.8    &  str.type = 'B'  & IF (str.wave GT !QSFIT_OPT.min_wavelength) THEN all.add, str
@@ -947,7 +988,6 @@ PRO qsfit_add_lineset
 
   ;;Get the list of lines to consider
   lines = qsfit_lineset()
-
   FOR i=0, gn(lines)-1 DO BEGIN
      ;;lines[i].type EQ 'N' ==> Narrow line
      ;;lines[i].type EQ 'B' ==> Broad line
@@ -970,8 +1010,9 @@ PRO qsfit_add_lineset
      comp.par.v_off.val   = 0
      comp.par.v_off.fixed = 0
      ;;comp.v_off.step  = 100 ;;CUSTOMIZABLE
-
+     
      comp.par.fwhm.fixed = 0
+     comp.par.fwhm.expr = ''
 
      IF (lines[i].type EQ 'N'  OR  lines[i].type EQ 'BN') THEN BEGIN
         comp.par.fwhm.val     =  500        ;CUSTOMIZABLE
@@ -989,17 +1030,22 @@ PRO qsfit_add_lineset
            comp.par.norm.val /= qsfit_comp_emline(comp.par.center.val, 1, comp.par.center.val, 0, comp.par.fwhm.val)
         ENDIF
 
+        IF (~!QSFIT_OPT.compat124) THEN BEGIN
+           IF (!QSFIT_OPT.bn_Fwhmtied  AND  (lines[i].type EQ 'BN')) THEN BEGIN
+              comp.par.fwhm.limits = [100, 2e3]
+           ENDIF
+        ENDIF
+
         gfit_add_comp, 'na_' + lines[i].name, comp
      ENDIF
 
-
      IF (lines[i].type EQ 'B'  OR  lines[i].type EQ 'BN') THEN BEGIN
         comp.par.fwhm.val     = 5000         ;CUSTOMIZABLE
-        comp.par.fwhm.limits  = [900, 1.5e4]  ;CUSTOMIZABLE
+        comp.par.fwhm.limits  = [900, 1.5e4] ;CUSTOMIZABLE
         comp.par.v_off.limits = 3000*[-1,1]  ;CUSTOMIZABLE
 
         IF (lines[i].name EQ 'MgII_2798') THEN $ ;;Exception for the "narrow" MgII line ;;TEST
-           comp.par.v_off.limits  = 1000*[-1,1] ;;To avoid confusion with iron. CUSTOMIZABLE
+           comp.par.v_off.limits  = 1000*[-1,1]  ;;To avoid confusion with iron. CUSTOMIZABLE
 
         ;;Guess normalization values
         comp.par.norm.val = 0
@@ -1007,6 +1053,14 @@ PRO qsfit_add_lineset
            dummy = MIN(ABS(xx - comp.par.center.val), ii)
            comp.par.norm.val  = ABS(yy[ii] - mo[ii])
            comp.par.norm.val /= qsfit_comp_emline(comp.par.center.val, 1, comp.par.center.val, 0, comp.par.fwhm.val)
+        ENDIF
+
+        IF (~!QSFIT_OPT.compat124) THEN BEGIN
+           IF (!QSFIT_OPT.bn_Fwhmtied  AND  (lines[i].type EQ 'BN')) THEN BEGIN
+              comp.par.fwhm.limits = [1, 20] ;;CUSTOMIZABLE
+              comp.par.fwhm.val    = 5       ;;CUSTOMIZABLE
+              comp.par.fwhm.expr   = 'br_' + lines[i].name + '_fwhm * na_' + lines[i].name + '_fwhm'
+           ENDIF
         ENDIF
 
         gfit_add_comp, 'br_' + lines[i].name, comp
@@ -1053,8 +1107,10 @@ PRO qsfit_add_lineset
   comp.par.v_off.fixed  = 1
   comp.par.norm.val     = 0
   comp.enabled = gfit.comp.br_Ha.enabled
-  gfit.comp.br_Ha.par.fwhm.val       = 3e3
-  gfit.comp.br_Ha.par.fwhm.limits[1] = 1e4
+  IF (!QSFIT_OPT.compat124) THEN BEGIN  
+     gfit.comp.br_Ha.par.fwhm.val       = 3e3
+     gfit.comp.br_Ha.par.fwhm.limits[1] = 1e4
+  ENDIF
   gfit_add_comp, 'line_Ha_base', comp
 
   IF (~!QSFIT_OPT.compat124) THEN BEGIN
@@ -1074,7 +1130,6 @@ PRO qsfit_add_lineset
   ENDIF
 
   ;;Add expressions
-  
   gfit_add_aux, 'expr_BroadLines', $
                 'cc.line_Ha_base + ' + $
                 STRJOIN('cc.br_' + lines[WHERE(lines.type EQ 'B'  OR  lines.type EQ 'BN')].name, ' + ')
@@ -1220,6 +1275,7 @@ PRO qsfit_add_balmer
 
   gprint, 'Adding Balmer template...'
   comp = gfit_component('qsfit_comp_balmer')
+
   gfit_add_comp, 'balmer', comp
 
   IF (!QSFIT_OPT.balmer) THEN BEGIN
@@ -1580,8 +1636,8 @@ FUNCTION qsfit_reduce_line, cname, wave, NOASSOC=noassoc
         IF (~gfit.comp.(j).enabled) THEN CONTINUE
 
         ;;Get center and FWHM of the unknown line
-        center  = gfit.comp.(j).par.center.val
-        fwhm    = gfit.comp.(j).par.fwhm.val
+        center  = gfit.comp.(j).par.center.actual
+        fwhm    = gfit.comp.(j).par.fwhm.actual
         fwhm_aa = fwhm * center / 3.e5 ;;FWHM in Angstrom
 
         ;;Currently we avoid association of unknown lines to narrow
@@ -1608,8 +1664,14 @@ FUNCTION qsfit_reduce_line, cname, wave, NOASSOC=noassoc
      line.ncomp    = 1
      line.lum      = gfit.comp.(assoc).par.norm.val
      line.lum_err  = gfit.comp.(assoc).par.norm.err
-     line.fwhm     = gfit.comp.(assoc).par.fwhm.val
-     line.fwhm_err = gfit.comp.(assoc).par.fwhm.err
+     IF (gfit.comp.(assoc).par.fwhm.expr EQ '') THEN BEGIN
+        line.fwhm     = gfit.comp.(assoc).par.fwhm.val
+        line.fwhm_err = gfit.comp.(assoc).par.fwhm.err
+     ENDIF $
+     ELSE BEGIN
+        line.fwhm     = gfit.comp.(assoc).par.fwhm.actual
+        line.fwhm_err = gfit.comp.(assoc).par.fwhm.err / gfit.comp.(assoc).par.fwhm.val * gfit.comp.(assoc).par.fwhm.actual
+     ENDELSE
      line.voff     = gfit.comp.(assoc).par.v_off.val
      line.voff_err = gfit.comp.(assoc).par.v_off.err
   ENDIF $
@@ -1639,10 +1701,18 @@ FUNCTION qsfit_reduce_line, cname, wave, NOASSOC=noassoc
            emline = [emline, gfit.comp.(ii)]
         ENDIF $
         ELSE BEGIN
-           ;;Non-associated components are disabled and their value
-           ;;set to 0.
-           gfit.comp.(ii).enabled = 0
-           gfit.comp.(ii).disabled_val = 0
+           ;;Non-associated lines have norm set to 0 (they are not
+           ;;disabled since they can be part of an expression for
+           ;;other components.
+           IF (gfit.comp.(ii).funcName EQ 'qsfit_comp_emline') THEN BEGIN
+              gfit.comp.(ii).par.norm.val = 0
+           ENDIF $
+           ELSE BEGIN
+              ;;remaining components are disabled and their value set
+              ;;to 0.
+              gfit.comp.(ii).enabled = 0
+              gfit.comp.(ii).disabled_val = 0
+           ENDELSE
         ENDELSE
      ENDFOR
 
@@ -1681,12 +1751,12 @@ FUNCTION qsfit_reduce_line, cname, wave, NOASSOC=noassoc
 
         ;;Estimate errors on associated lines by weighting errors on
         ;;individual components
-        err = emline.par.fwhm.err
+        err = emline.par.fwhm.err / emline.par.fwhm.val
         ii = WHERE(err GT 0)
         IF (ii[0] NE -1) THEN BEGIN
            weight = emline[ii].par.norm.val
            weight /= TOTAL(weight)
-           line.fwhm_err = TOTAL(err[ii] * weight)
+           line.fwhm_err = TOTAL(err[ii] * weight) * line.fwhm
         ENDIF $
         ELSE BEGIN
            line.fwhm     = gnan()
@@ -2443,8 +2513,6 @@ PRO qsfit_show_step, filename
   ;filename = []
 
   IF (~!QSFIT_OPT.show_step) THEN RETURN
-  gfit_report
-  gkey
 
   title = gfit.obs.(0).plot.title
   rebin = gfit.obs.(0).plot.rebin
@@ -2463,6 +2531,8 @@ PRO qsfit_show_step, filename
 
   gfit.obs.(0).plot.title = title
   gfit.obs.(0).plot.rebin = rebin
+  gfit_report, /all
+  gkey
 END
 
 ;=====================================================================
@@ -2482,7 +2552,7 @@ PRO qsfit_run
   COMMON COM_RESAMPLING, unkCenter, unkEnabled
 
   ;;Avoid logging on iterations
-  gfit.opt.log_iter = 0
+  gfit.opt.log_iter = 1
 
   ;;Stop when relative difference in chi-squared is at most 1.e-6
   gfit.opt.tol = 1.e-6 ;;CUSTOMIZABLE

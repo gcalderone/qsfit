@@ -70,6 +70,7 @@ PRO gcompile_qsfit, path
   gcompile, /hold, path + 'components/qsfit_comp_balmer.pro'
   gcompile, /hold, path + 'components/ggaltempl_mannucci01.pro'
   gcompile, /hold, path + 'components/ggaltempl_swire.pro'
+  gcompile, /hold, path + 'components/qsfit_comp_contabsorption.pro'
   gcompile, /hold, path + 'qsfit.pro'
 
   ;;Compile the package

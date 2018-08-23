@@ -164,8 +164,7 @@ PRO gfit_compile
               pp = cc.par.(ipar)
               IF (pp.expr EQ '') THEN CONTINUE
               PRINTF, lun, '  ' + pp.comp + '_' + pp.parname + ' = ' + pp.expr
-              ;; IF (pp.fixed EQ 1) THEN $
-              ;;    PRINTF, lun, '  gfit.comp.' + pp.comp + '.par.' + pp.parname + '.val = ' + pp.comp + '_' + pp.parname
+              PRINTF, lun, '  gfit.comp.' + pp.comp + '.par.' + pp.parname + '.actual = ' + pp.comp + '_' + pp.parname
            ENDFOR
 
            ;;Evaluate component values for each X

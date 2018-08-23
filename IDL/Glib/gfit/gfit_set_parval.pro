@@ -46,6 +46,9 @@ PRO gfit_set_parval, pval, perr
         par.val = pval[count]
         par.err = perr[count]
 
+        IF (par.expr EQ '') THEN $
+           par.actual = par.val
+
         ;;Check param value is within the limit
         IF ((par.val EQ par.limits[0])   OR   $
             (par.val EQ par.limits[1]))  THEN BEGIN

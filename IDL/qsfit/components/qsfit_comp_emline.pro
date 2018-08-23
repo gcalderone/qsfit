@@ -72,6 +72,12 @@ FUNCTION qsfit_comp_emline, x, norm, center, v_off, fwhm
 
   IF (norm EQ 0) THEN RETURN, 0.
 
+  IF (!QSFIT_OPT.lorentzian  AND  (!QSFIT_OPT.compat124 EQ 0)) THEN BEGIN
+     x0 = center - (v_off / 3.e5) * center
+     xx = (x - x0) / (fwhm / 3.e5 * center / 2.)
+     RETURN, FLOAT(norm / (1 + xx^2.))
+  ENDIF
+
   x0    = center - (v_off / 3.e5) * center
   sigma =          (fwhm  / 3.e5) * center / 2.35
 

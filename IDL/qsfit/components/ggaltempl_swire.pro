@@ -83,7 +83,7 @@ PRO gswire_galtempl_plot
   ggp_cmd, 'set mytics 10'
   ggp_cmd, 'set format y "%3.0e"'
   ggp_cmd, xtit='Freq. [Hz]', ytit='{/Symbol n} F_{/Symbol n} [arb. units]'; [erg s^{-1} cm^{-2}]'
-  stop
+
   FOR i=0, N_ELEMENTS(keys)-1 DO BEGIN
      x = gal[keys[i]].x
      y = gal[keys[i]].y
@@ -91,3 +91,38 @@ PRO gswire_galtempl_plot
   ENDFOR
   ggp
 END
+
+
+
+PRO gswire_galtempl_plot_lambda
+  COMPILE_OPT IDL2
+  ON_ERROR, !glib.on_error
+
+  ;;Swire galaxy templates:
+  ;;http://www.iasf-milano.inaf.it/~polletta/templates/swire_templates.html
+  tmp = ggaltempl_swire()
+  keys = tmp.keys()
+  gal = {}
+  FOREACH key, keys DO $
+    gal = CREATE_STRUCT(gal, key, {x: tmp[key].x, y: tmp[key].y})
+
+  ggp_clear
+  ggp_cmd, /xlog, /ylog;, xr=[3.d13, 3.d15];, yr=[1.e-4, 1]
+  ggp_cmd, 'set term wxt'
+  ggp_cmd, 'set key horizontal outside'
+  ggp_cmd, 'set mxtics 10'
+  ggp_cmd, 'set mytics 10'
+  ggp_cmd, 'set format y "%3.0e"'
+  ggp_cmd, 'set term pdf'
+  ggp_cmd, 'set output "polletta.pdf"'
+  ggp_cmd, xtit='{Wavelength [A]', ytit='{/Symbol l} F_{/Symbol l} [arb. units]'; [erg s^{-1} cm^{-2}]'
+
+  keys = TAG_NAMES(gal)
+  FOR i=0, N_ELEMENTS(keys)-1 DO BEGIN
+     x = gal.(i).x
+     y = gal.(i).y
+     ggp_data, x, x*y, plot='w l title "' + keys[i] + '"'
+  ENDFOR
+  ggp, term='pdf', output='polletta.pdf'
+END
+
