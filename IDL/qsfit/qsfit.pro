@@ -88,21 +88,22 @@ PRO qsfit_prepare_options, DEFAULT=default
 
         ;; The minimum wavelength used during fit.  Smaller
         ;; wavelengths are ignored.
-        min_wavelength: 920,      $
+        min_wavelength: 1210,      $
 
         ;; Compatibility with QSFit 1.2.4
         compat124: 1b,             $
 
         ;; If 1 use Lorentzian (rather than Gaussian) profiles for
         ;; emission lines
-        lorentzian: 1b,            $
+        lorentzian: 0b,            $
 
         ;; If 1 tie the FWHM of broad component to be larger than the
         ;; FWHM of the associated narrow line
-        bn_Fwhmtied: 1b,           $
+        bn_Fwhmtied: 0b,           $
 
-        ;; If 1 use consider multiplicative absorption beyond 1216AA
-        multiplicative_absorption: 1b  $
+        ;; If 1 consider multiplicative absorption at wavelengths
+        ;; shorter than 1216AA (EXPERIMENTAL: USE AT YOUR OWN RISK!)
+        multiplicative_absorption: 0b  $
   }
 
   IF (exists) THEN $
