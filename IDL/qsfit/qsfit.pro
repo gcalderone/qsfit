@@ -652,6 +652,8 @@ PRO qsfit_compile
   ON_ERROR, !glib.on_error
   COMMON GFIT
 
+  IF (gfit_nfree() EQ 0) THEN RETURN
+
   ;;Setup GFIT model expression: actually the sum of all components
   cnames = 'cc.' + TAG_NAMES(gfit.comp)
   i1 = WHERE(STRMID(cnames, 0, 4) NE 'ABS_')
@@ -1253,8 +1255,7 @@ PRO qsfit_add_iron
   gfit.obs.(0).aux.expr_iron.plot.label = 'Iron'
   gfit.obs.(0).aux.expr_iron.plot.gp = 'w line ls 1 lw 1 lt rgb "dark-green"'
 
-  IF (gn(gfit_get_par()) GT 0) THEN $
-     qsfit_compile
+  qsfit_compile
 END
 
 

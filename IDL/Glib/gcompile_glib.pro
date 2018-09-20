@@ -65,6 +65,7 @@ PRO gcompile_glib, path
   FORWARD_FUNCTION gfit_component
   FORWARD_FUNCTION gfit_get_covar
   FORWARD_FUNCTION gfit_get_par
+  FORWARD_FUNCTION gfit_nfree
   FORWARD_FUNCTION ggp_get_state
   FORWARD_FUNCTION ggp_hist
   FORWARD_FUNCTION ggp_plot_struct
@@ -170,6 +171,7 @@ PRO gcompile_glib, path
   gcompile, /hold, path + 'gfit/gfit_component.pro'
   gcompile, /hold, path + 'gfit/gfit_get_covar.pro'
   gcompile, /hold, path + 'gfit/gfit_set_parval.pro'
+  gcompile, /hold, path + 'gfit/gfit_nfree.pro'
   gcompile, /hold, path + 'gfit/gfit_get_par.pro'
   gcompile, /hold, path + 'gfit/gfit_rebin.pro'
   gcompile, /hold, path + 'gfit/gfit_plot.pro'
