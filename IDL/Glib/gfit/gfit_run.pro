@@ -67,11 +67,11 @@ PRO gfit_run, EVAL=eval
   gfit.res.mpfit_status = 0
   gfit.res.elapsed_time = gnan()
 
-  par = gfit_get_par()
-  IF (~gsearch(par.fixed EQ 0)) THEN  BEGIN
+  IF (gfit_nfree() EQ 0) THEN BEGIN
      PRINT, 'WARNING: No free parameters in the model'
      RETURN
   ENDIF
+  par = gfit_get_par()
   par.expr = ''
 
   pval = MPFIT('mpfit_eval_model'                              $
