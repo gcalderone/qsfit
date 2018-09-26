@@ -57,7 +57,9 @@ FUNCTION gloggen, _min, _max, _num
      num = _max[0]     
   ENDELSE
 
-  ret = 10.^(ggen(ALOG10(min), ALOG10(max), num))
-
+  ;; The following may lead to inconsistencies in calculation on
+  ;; different machines
+  ;; ret = 10.^(ggen(ALOG10(min), ALOG10(max), num))  ;; DO NOT USE THIS!
+  ret = min * (max/min)^(FINDGEN(num) / (num-1))
   RETURN, ret
 END
