@@ -1075,7 +1075,7 @@ PRO qsfit_add_lineset
         tmp.par.fwhm.val      = 3000         ;CUSTOMIZABLE
         tmp.par.fwhm.limits   = [200, 1.5e4] ;CUSTOMIZABLE
         tmp.par.center.val    = lines[i].wave
-        tmp.par.center.limits = tmp.center.val + [-100, 100] ;CUSTOMIZABLE
+        tmp.par.center.limits = tmp.par.center.val + [-100, 100] ;CUSTOMIZABLE
         tmp.par.center.fixed  = 0
         tmp.par.v_off.fixed   = 1
         gfit_add_comp, 'abs_' + lines[i].name, tmp
