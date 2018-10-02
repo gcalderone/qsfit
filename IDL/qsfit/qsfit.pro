@@ -91,7 +91,7 @@ PRO qsfit_prepare_options, DEFAULT=default
         min_wavelength: 1210,      $
 
         ;; Compatibility with QSFit 1.2.4
-        compat124: 1b,             $
+        compat124: 0b,             $
 
         ;; If 1 use Lorentzian (rather than Gaussian) profiles for
         ;; emission lines
@@ -656,9 +656,8 @@ PRO qsfit_compile
 
   ;;Setup GFIT model expression: actually the sum of all components
   cnames = 'cc.' + TAG_NAMES(gfit.comp)
-  i1 = WHERE(STRMID(cnames, 0, 4) NE 'ABS_')
-  i2 = WHERE(STRMID(cnames, 0, 4) EQ 'ABS_')
-
+  i1 = WHERE(STRMID(cnames, 0, 7) NE 'cc.ABS_')
+  i2 = WHERE(STRMID(cnames, 0, 7) EQ 'cc.ABS_')
   expr = STRJOIN(cnames[i1], ' + ')
   IF (i2[0] NE -1) THEN $
      expr = '(1 - (' + STRJOIN(cnames[i2], ' + ') + ')) * (' + expr + ')'
@@ -884,7 +883,8 @@ FUNCTION qsfit_lineset
   ;;str.name = 'OIII'        & str.wave = 1665.85   &  str.type = 'B'  & IF (str.wave GT !QSFIT_OPT.min_wavelength) THEN all.add, str
   ;;str.name = 'AlIII'       & str.wave = 1857.4    &  str.type = 'B'  & IF (str.wave GT !QSFIT_OPT.min_wavelength) THEN all.add, str
     str.name = 'CIII_1909'   & str.wave = 1908.734  &  str.type = 'B'  & IF (str.wave GT !QSFIT_OPT.min_wavelength) THEN all.add, str ;;CIII]
-  ;;str.name = 'CII'         & str.wave = 2326.0    &  str.type = 'B'  & IF (str.wave GT !QSFIT_OPT.min_wavelength) THEN all.add, str
+    str.name = 'CII'         & str.wave = 2326.0    &  str.type = 'B'  & IF (str.wave GT !QSFIT_OPT.min_wavelength) THEN all.add, str ;;TEST
+  ;;str.name = 'AA'          & str.wave = 2420.0    &  str.type = 'B'  & IF (str.wave GT !QSFIT_OPT.min_wavelength) THEN all.add, str ;;TEST
     str.name = 'MgII_2798'   & str.wave = 2799.117  &  str.type = 'B'  & IF (str.wave GT !QSFIT_OPT.min_wavelength) THEN all.add, str
   ;;str.name = 'NeV'         & str.wave = 3346.79   &  str.type = 'N'  & IF (str.wave GT !QSFIT_OPT.min_wavelength) THEN all.add, str ;;[NeV]
     str.name = 'NeVI_3426'   & str.wave = 3426.85   &  str.type = 'N'  & IF (str.wave GT !QSFIT_OPT.min_wavelength) THEN all.add, str ;;[NeVI]
@@ -1047,8 +1047,10 @@ PRO qsfit_add_lineset
         comp.par.fwhm.limits  = [900, 1.5e4] ;CUSTOMIZABLE
         comp.par.v_off.limits = 3000*[-1,1]  ;CUSTOMIZABLE
 
-        IF (lines[i].name EQ 'MgII_2798') THEN $ ;;Exception for the "narrow" MgII line ;;TEST
+        IF (lines[i].name EQ 'MgII_2798') THEN BEGIN ;;Exception for the "narrow" MgII line
+           ;;comp.par.fwhm.val      = 2000              ;CUSTOMIZABLE
            comp.par.v_off.limits  = 1000*[-1,1]  ;;To avoid confusion with iron. CUSTOMIZABLE
+        ENDIF
 
         ;;Guess normalization values
         comp.par.norm.val = 0
@@ -1072,11 +1074,12 @@ PRO qsfit_add_lineset
      tmp = comp
      IF (lines[i].type EQ 'A') THEN BEGIN
         tmp.par.norm.val      = 0.1
-        tmp.par.fwhm.val      = 3000         ;CUSTOMIZABLE
-        tmp.par.fwhm.limits   = [200, 1.5e4] ;CUSTOMIZABLE
+        tmp.par.fwhm.val      = 1000        ;CUSTOMIZABLE
+        tmp.par.fwhm.limits   = [200, 5000] ;CUSTOMIZABLE
         tmp.par.center.val    = lines[i].wave
-        tmp.par.center.limits = tmp.par.center.val + [-100, 100] ;CUSTOMIZABLE
+        tmp.par.center.limits = tmp.par.center.val + 5. * [-1, 1] ;CUSTOMIZABLE
         tmp.par.center.fixed  = 0
+        tmp.par.v_off.val     = 0
         tmp.par.v_off.fixed   = 1
         gfit_add_comp, 'abs_' + lines[i].name, tmp
      ENDIF
@@ -1152,7 +1155,7 @@ PRO qsfit_add_lineset
      gfit_add_aux, 'expr_AbsLines', '0'
   gfit.obs.(0).aux.expr_abslines.plot.label = 'Absorption'
   gfit.obs.(0).aux.expr_abslines.plot.gp = 'w line ls 1 lw 2 lt rgb "black"'
-  gfit.obs.(0).aux.expr_abslines.plot.enable = 0 ;;Do not show this expression in plots
+  gfit.obs.(0).aux.expr_abslines.plot.enable = 1 ;;Do not show this expression in plots
 
   IF (!QSFIT_OPT.unkLines GT 0) THEN $
      gfit_add_aux, 'expr_Unknown', STRJOIN('cc.unk' + gn2s(INDGEN(!QSFIT_OPT.unkLines)+1), ' + ') $
@@ -1349,6 +1352,12 @@ PRO qsfit_add_unknown
         ;;      mo[ii] = yy[ii]
         ;;ENDIF
 
+        ;;;; Avoid adding lines around MgII line
+        ;;ii = WHERE(xx GT 2700 AND xx LT 3000)
+        ;;IF (ii[0] NE -1) THEN BEGIN
+        ;;   mo[ii] = yy[ii]
+        ;;ENDIF
+        
         ;;Do not add lines within 6000 km/s from the edges since these
         ;;may influence continuum fitting (6000 km/s / speed of light
         ;;= 0.02).
@@ -2358,9 +2367,10 @@ FUNCTION qsfit_reduce
   lines = qsfit_lineset()
 
   ;; Calculate the sum of all QSFit components except "known" emission lines
-  sum_wo_lines = gfit.obs.(0).eval.m - out.expr.expr_broadlines - out.expr.expr_narrowlines
+  sum_wo_lines = gfit.obs.(0).eval.m
   sum_wo_lines /= (1. - out.expr.expr_abslines)
-
+  sum_wo_lines -= (out.expr.expr_broadlines - out.expr.expr_narrowlines)
+  
   alllines = []
   FOR j=0, gn(lines)-1 DO BEGIN
      IF (lines[j].type EQ 'N'  OR  lines[j].type EQ 'BN') THEN BEGIN
@@ -2835,8 +2845,8 @@ PRO qsfit_plot, red, FILENAME=filename, s11=s11, RESID=resid, TERM=term
      IF (lines[i].type EQ 'A') THEN BEGIN
         lineName = 'ABS_' + STRUPCASE(lines[i].name)
         icomp = WHERE(TAG_NAMES(gfit.comp) EQ lineName)
-        ggp_data, gfit.comp.(icomp).par.center.val*[1,1], gminmax(red.gfit.obs.(0).eval.y), $
-                  pl='w l notit dt 2 lc rgb "gray"'
+        ;;ggp_data, gfit.comp.(icomp).par.center.val*[1,1], gminmax(red.gfit.obs.(0).eval.y), $
+        ;;          pl='w l notit dt 2 lc rgb "red"'
      ENDIF
   ENDFOR
 
@@ -2998,7 +3008,7 @@ FUNCTION qsfit, input, OUTNAME=outname, PROCID=procid, TICTOC=tictoc, RESAMPLE=r
      ;;Load data into GFIT
      gfit_init
      FOR i=0, gn(input)-1 DO BEGIN
-        qsfit_log, 'ID: ' + input[i].id
+        qsfit_log, 'ID: ' + STRING(input[i].id)
         qsfit_add_data, input[i]
      ENDFOR
      qsfit_log

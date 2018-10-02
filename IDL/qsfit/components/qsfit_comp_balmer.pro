@@ -213,7 +213,7 @@ PRO qsfit_comp_balmer_continuum, x, logT, logTau, fwhm, bac, bac_at_edge
   Temp = 10.^logT
   tau  = 10.^logTau
   
-  xx = gloggen(912, 4000, 500) ;; Angstrom
+  xx = gloggen(912, 5000, 600) ;; Angstrom
   l = xx*1.e-8                 ;; wavelengths in cm
   
   ;; Planck function
@@ -408,7 +408,9 @@ FUNCTION qsfit_comp_balmer, x, norm, ratio, logT, logNe, logTau, fwhm, cont3000,
   ;;PLOT , x, bac
   ;;OPLOT, x, ratio * bac_at_edge * curr[*,iHOL], col=255
 
-  RETURN, norm * cont3000 * (bac + ratio * bac_at_edge * (*cdata).hol_y[*,ihol])
+  ret = norm * cont3000 * (bac + ratio * bac_at_edge * (*cdata).hol_y[*,ihol])
+  IF gsearch(ret < 0) THEN MESSAGE, "Balmer continuum can not be negative"
+  RETURN, ret
 END
 
 
@@ -419,10 +421,10 @@ PRO qsfit_comp_balmer_test
   x = ggen(1000, 4100, 1000)
 
   comp = gfit_component('qsfit_comp_balmer')
-  cdata = PTR_NEW(qsfit_comp_balmer_cdata(comp, x))
+  cdata = qsfit_comp_balmer_cdata(comp, x)
 
-  y1 = qsfit_comp_balmer(x, 1, 1  , ALOG10(15000), 9, 0, 5000, cdata=cdata)
-  y2 = qsfit_comp_balmer(x, 1, 0.5, ALOG10(15000), 9, 0, 5000, cdata=cdata)
+  y1 = qsfit_comp_balmer(x, 1, 1  , ALOG10(15000), 9, 0, 5000, 1, cdata=cdata)
+  y2 = qsfit_comp_balmer(x, 1, 0.5, ALOG10(15000), 9, 0, 5000, 1, cdata=cdata)
 
   ggp_clear
   ggp_cmd, 'set key left', $
