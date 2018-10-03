@@ -388,7 +388,6 @@ FUNCTION qsfit_comp_balmer, x, norm, ratio, logT, logNe, logTau, fwhm, cont3000,
   IF (gn((*cdata).hol) EQ 1) THEN $
      ihol = 0 $
   ELSE BEGIN
-     STOP ;TODO
      i = INDGEN(gn(hol))
      dummy = MIN(ABS(hol[i].logT  - logT) , j)  &   k = WHERE(hol[i].logT  EQ hol[i[j]].logT)
      dummy = MIN(ABS(hol[i].logNe - logNe), j)  &   k = WHERE(hol[i].logNe EQ hol[i[j]].logNe)  &   i = i[k]
@@ -409,7 +408,7 @@ FUNCTION qsfit_comp_balmer, x, norm, ratio, logT, logNe, logTau, fwhm, cont3000,
   ;;OPLOT, x, ratio * bac_at_edge * curr[*,iHOL], col=255
 
   ret = norm * cont3000 * (bac + ratio * bac_at_edge * (*cdata).hol_y[*,ihol])
-  IF gsearch(ret < 0) THEN MESSAGE, "Balmer continuum can not be negative"
+  IF gsearch(ret LT 0) THEN MESSAGE, "Balmer continuum can not be negative"
   RETURN, ret
 END
 

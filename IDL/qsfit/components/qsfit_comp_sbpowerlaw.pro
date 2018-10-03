@@ -77,7 +77,6 @@ FUNCTION qsfit_comp_sbpowerlaw_cdata, comp, x, cdata
   cdata = { $
           xx: xx            , $
           logx: ALOG(xx)    , $
-          res: REPLICATE(DOUBLE(gnan()), gn(xx)), $
           eval: REPLICATE(gnan(), 2) $
           }
   RETURN, PTR_NEW(cdata)
@@ -99,10 +98,15 @@ FUNCTION qsfit_comp_sbpowerlaw, x, norm, x0, alpha1, dalpha, curv, cdata=cdata
            )
   ;;IF (CHECK_MATH(mask=208,/NOCLEAR) NE 0) THEN STOP
 
-  (*cdata).res = ret * norm
-  (*cdata).eval = INTERPOL((*cdata).res, (*cdata).xx, [2350., 3000.])
+  (*cdata).eval = EXP(                         $
+        alpha1 * (ALOG([2350., 3000.]) - ALOG(x0)) + $
+        s/curv * (  ALOG(1.d + ((*cdata).xx/x0)^(da*curv)) - ALOG(2.d)  ) $
+                     )
+  IF (MIN((*cdata).eval) LT 0) THEN MESSAGE, "Unexpected negative value"
 
-  RETURN, FLOAT(INTERPOL(ret * norm, (*cdata).xx, x))
+  ret = FLOAT(INTERPOL(ret * norm, (*cdata).xx, x))
+  IF (MIN(ret LT 0)) THEN MESSAGE, "Unexpected negative value"
+  RETURN, ret
 END
 
 FUNCTION qsfit_comp_sbpowerlaw_l2350
