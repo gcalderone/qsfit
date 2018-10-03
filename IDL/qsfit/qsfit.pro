@@ -1064,7 +1064,7 @@ PRO qsfit_add_lineset
      IF (lines[i].type EQ 'A') THEN BEGIN
         tmp.par.norm.val      = 0.1
         tmp.par.fwhm.val      = 1000        ;CUSTOMIZABLE
-        tmp.par.fwhm.limits   = [200, 5000] ;CUSTOMIZABLE
+        tmp.par.fwhm.limits   = [200, 30000] ;CUSTOMIZABLE
         tmp.par.center.val    = lines[i].wave
         tmp.par.center.limits = tmp.par.center.val + 5. * [-1, 1] ;CUSTOMIZABLE
         tmp.par.center.fixed  = 0
@@ -1325,7 +1325,6 @@ PRO qsfit_add_unknown
         ee = gfit.obs.(0).eval.e
         mo = gfit.obs.(0).eval.m
 
-        ;TODO: explain
         ;;IF (ABS(gfit.obs.(0).data.(0).udata.z - 0.5) LT 0.2) THEN BEGIN
         ;;   ii = WHERE((xx GT 4350 AND xx LT 4860)  OR   $
         ;;              (xx GT 5150 AND xx LT 5520))
@@ -1334,7 +1333,7 @@ PRO qsfit_add_unknown
         ;;ENDIF
 
         ;;;; Avoid adding lines around MgII line
-        ;;ii = WHERE(xx GT 2700 AND xx LT 3000)
+        ;;ii = WHERE(xx GT 2700 AND xx LT 2900)
         ;;IF (ii[0] NE -1) THEN BEGIN
         ;;   mo[ii] = yy[ii]
         ;;ENDIF
