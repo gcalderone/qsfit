@@ -28,7 +28,7 @@
 ;  The QSFIT version.
 ;
 FUNCTION qsfit_version
-  RETURN, '1.3.0'
+  RETURN, '2.0.0'
 END
 
 ;=====================================================================
@@ -89,9 +89,6 @@ PRO qsfit_prepare_options, DEFAULT=default
         ;; The minimum wavelength used during fit.  Smaller
         ;; wavelengths are ignored.
         min_wavelength: 1210,      $
-
-        ;; Compatibility with QSFit 1.2.4
-        compat124: 0b,             $
 
         ;; If 1 use Lorentzian (rather than Gaussian) profiles for
         ;; emission lines
@@ -574,12 +571,10 @@ PRO qsfit_freeze, cont=cont, iron=iron, lines=lines
         ;;gfit.comp.balmer.par.fwhm.fixed  = cont
      ENDIF
 
-     IF (~!QSFIT_OPT.compat124) THEN BEGIN
-        IF (!QSFIT_OPT.multiplicative_absorption) THEN BEGIN
-           IF (MIN(gfit.obs.(0).eval.x) LE 1210) THEN BEGIN
-              gfit.comp.abs_slope.par.norm.fixed = cont
-              gfit.comp.abs_slope.par.slope.fixed = cont
-           ENDIF
+     IF (!QSFIT_OPT.multiplicative_absorption) THEN BEGIN
+        IF (MIN(gfit.obs.(0).eval.x) LE 1210) THEN BEGIN
+           gfit.comp.abs_slope.par.norm.fixed = cont
+           gfit.comp.abs_slope.par.slope.fixed = cont
         ENDIF
      ENDIF
   ENDIF
@@ -616,17 +611,13 @@ PRO qsfit_freeze, cont=cont, iron=iron, lines=lines
      IF (gfit.comp.line_ha_base.enabled) THEN BEGIN
         gfit.comp.line_ha_base.par.norm.fixed = lines
         gfit.comp.line_ha_base.par.fwhm.fixed = lines
-        IF (~!QSFIT_OPT.compat124) THEN BEGIN
-           gfit.comp.line_ha_base.par.v_off.fixed = lines
-        ENDIF
+        gfit.comp.line_ha_base.par.v_off.fixed = lines
      ENDIF
 
-     IF (~!QSFIT_OPT.compat124) THEN BEGIN
-        IF (gfit.comp.line_oiii_bw.enabled) THEN BEGIN
-           gfit.comp.line_oiii_bw.par.norm.fixed = lines
-           gfit.comp.line_oiii_bw.par.fwhm.fixed = lines
-           gfit.comp.line_oiii_bw.par.v_off.fixed = lines
-        ENDIF
+     IF (gfit.comp.line_oiii_bw.enabled) THEN BEGIN
+        gfit.comp.line_oiii_bw.par.norm.fixed = lines
+        gfit.comp.line_oiii_bw.par.fwhm.fixed = lines
+        gfit.comp.line_oiii_bw.par.v_off.fixed = lines
      ENDIF
 
      gfit.comp.na_OIII_4959.par.v_off.fixed = 1
@@ -662,10 +653,8 @@ PRO qsfit_compile
   IF (i2[0] NE -1) THEN $
      expr = '(1 - (' + STRJOIN(cnames[i2], ' + ') + ')) * (' + expr + ')'
 
-  IF (~!QSFIT_OPT.compat124) THEN BEGIN
-     IF (!QSFIT_OPT.multiplicative_absorption) THEN BEGIN
-        expr = "cc.abs_slope * (" + expr + ")"
-     ENDIF
+  IF (!QSFIT_OPT.multiplicative_absorption) THEN BEGIN
+     expr = "cc.abs_slope * (" + expr + ")"
   ENDIF
 
   gfit.obs.(0).expr = expr
@@ -764,17 +753,15 @@ PRO qsfit_add_continuum
      gfit.comp.galaxy.enabled = 0
   ENDIF
 
-  IF (~!QSFIT_OPT.compat124) THEN BEGIN
-     IF (!QSFIT_OPT.multiplicative_absorption) THEN BEGIN
-        gprint, '   multabs'
-        abs_slope = gfit_component('qsfit_comp_contabsorption')
-        gfit_add_comp, 'Abs_slope', abs_slope
-        IF (MIN(gfit.obs.(0).eval.x) GT 1210) THEN BEGIN
-           gfit.comp.abs_slope.par.norm.val = 1
-           gfit.comp.abs_slope.par.norm.fixed = 1
-           gfit.comp.abs_slope.par.slope.val = 0
-           gfit.comp.abs_slope.par.slope.fixed = 1
-        ENDIF
+  IF (!QSFIT_OPT.multiplicative_absorption) THEN BEGIN
+     gprint, '   multabs'
+     abs_slope = gfit_component('qsfit_comp_contabsorption')
+     gfit_add_comp, 'Abs_slope', abs_slope
+     IF (MIN(gfit.obs.(0).eval.x) GT 1210) THEN BEGIN
+        gfit.comp.abs_slope.par.norm.val = 1
+        gfit.comp.abs_slope.par.norm.fixed = 1
+        gfit.comp.abs_slope.par.slope.val = 0
+        gfit.comp.abs_slope.par.slope.fixed = 1
      ENDIF
   ENDIF
 
@@ -883,8 +870,8 @@ FUNCTION qsfit_lineset
   ;;str.name = 'OIII'        & str.wave = 1665.85   &  str.type = 'B'  & IF (str.wave GT !QSFIT_OPT.min_wavelength) THEN all.add, str
   ;;str.name = 'AlIII'       & str.wave = 1857.4    &  str.type = 'B'  & IF (str.wave GT !QSFIT_OPT.min_wavelength) THEN all.add, str
     str.name = 'CIII_1909'   & str.wave = 1908.734  &  str.type = 'B'  & IF (str.wave GT !QSFIT_OPT.min_wavelength) THEN all.add, str ;;CIII]
-    str.name = 'CII'         & str.wave = 2326.0    &  str.type = 'B'  & IF (str.wave GT !QSFIT_OPT.min_wavelength) THEN all.add, str ;;TEST
-  ;;str.name = 'AA'          & str.wave = 2420.0    &  str.type = 'B'  & IF (str.wave GT !QSFIT_OPT.min_wavelength) THEN all.add, str ;;TEST
+    str.name = 'CII'         & str.wave = 2326.0    &  str.type = 'B'  & IF (str.wave GT !QSFIT_OPT.min_wavelength) THEN all.add, str ;;CII]
+  ;;str.name = 'F2420'       & str.wave = 2420.0    &  str.type = 'B'  & IF (str.wave GT !QSFIT_OPT.min_wavelength) THEN all.add, str
     str.name = 'MgII_2798'   & str.wave = 2799.117  &  str.type = 'B'  & IF (str.wave GT !QSFIT_OPT.min_wavelength) THEN all.add, str
   ;;str.name = 'NeV'         & str.wave = 3346.79   &  str.type = 'N'  & IF (str.wave GT !QSFIT_OPT.min_wavelength) THEN all.add, str ;;[NeV]
     str.name = 'NeVI_3426'   & str.wave = 3426.85   &  str.type = 'N'  & IF (str.wave GT !QSFIT_OPT.min_wavelength) THEN all.add, str ;;[NeVI]
@@ -1033,10 +1020,8 @@ PRO qsfit_add_lineset
            comp.par.norm.val /= qsfit_comp_emline(comp.par.center.val, 1, comp.par.center.val, 0, comp.par.fwhm.val)
         ENDIF
 
-        IF (~!QSFIT_OPT.compat124) THEN BEGIN
-           IF (!QSFIT_OPT.bn_Fwhmtied  AND  (lines[i].type EQ 'BN')) THEN BEGIN
-              comp.par.fwhm.limits = [100, 2e3]
-           ENDIF
+        IF (!QSFIT_OPT.bn_Fwhmtied  AND  (lines[i].type EQ 'BN')) THEN BEGIN
+           comp.par.fwhm.limits = [100, 2e3]
         ENDIF
 
         gfit_add_comp, 'na_' + lines[i].name, comp
@@ -1060,12 +1045,10 @@ PRO qsfit_add_lineset
            comp.par.norm.val /= qsfit_comp_emline(comp.par.center.val, 1, comp.par.center.val, 0, comp.par.fwhm.val)
         ENDIF
 
-        IF (~!QSFIT_OPT.compat124) THEN BEGIN
-           IF (!QSFIT_OPT.bn_Fwhmtied  AND  (lines[i].type EQ 'BN')) THEN BEGIN
-              comp.par.fwhm.limits = [1, 20] ;;CUSTOMIZABLE
-              comp.par.fwhm.val    = 5       ;;CUSTOMIZABLE
-              comp.par.fwhm.expr   = 'br_' + lines[i].name + '_fwhm * na_' + lines[i].name + '_fwhm'
-           ENDIF
+        IF (!QSFIT_OPT.bn_Fwhmtied  AND  (lines[i].type EQ 'BN')) THEN BEGIN
+           comp.par.fwhm.limits = [1, 20] ;;CUSTOMIZABLE
+           comp.par.fwhm.val    = 5       ;;CUSTOMIZABLE
+           comp.par.fwhm.expr   = 'br_' + lines[i].name + '_fwhm * na_' + lines[i].name + '_fwhm'
         ENDIF
 
         gfit_add_comp, 'br_' + lines[i].name, comp
@@ -1113,27 +1096,21 @@ PRO qsfit_add_lineset
   comp.par.v_off.fixed  = 1
   comp.par.norm.val     = 0
   comp.enabled = gfit.comp.br_Ha.enabled
-  IF (!QSFIT_OPT.compat124) THEN BEGIN  
-     gfit.comp.br_Ha.par.fwhm.val       = 3e3
-     gfit.comp.br_Ha.par.fwhm.limits[1] = 1e4
-  ENDIF
   gfit_add_comp, 'line_Ha_base', comp
 
-  IF (~!QSFIT_OPT.compat124) THEN BEGIN
-     ;;Add a line to account for the blue OIII wing
-     comp = gfit_component('qsfit_comp_emline')
-     comp.par.center.val   = gfit.comp.na_OIII_5007.par.center.val
-     comp.par.center.fixed = 1
-     comp.par.fwhm.val     = 500        ;CUSTOMIZABLE
-     comp.par.fwhm.limits  = [100, 1e3] ;CUSTOMIZABLE
-     comp.par.fwhm.expr    = 'na_OIII_5007_fwhm + line_OIII_bw_fwhm'
-     comp.par.v_off.val    = 0
-     comp.par.v_off.limits = [0, 2e3] ;CUSTOMIZABLE
-     comp.par.v_off.expr   = 'na_OIII_5007_v_off + line_OIII_bw_v_off'
-     comp.par.norm.val     = 0
-     comp.enabled = gfit.comp.na_OIII_5007.enabled
-     gfit_add_comp, 'line_OIII_bw', comp
-  ENDIF
+  ;;Add a line to account for the blue OIII wing
+  comp = gfit_component('qsfit_comp_emline')
+  comp.par.center.val   = gfit.comp.na_OIII_5007.par.center.val
+  comp.par.center.fixed = 1
+  comp.par.fwhm.val     = 500           ;CUSTOMIZABLE
+  comp.par.fwhm.limits  = [100, 1e3]    ;CUSTOMIZABLE
+  comp.par.fwhm.expr    = 'na_OIII_5007_fwhm + line_OIII_bw_fwhm'
+  comp.par.v_off.val    = 0
+  comp.par.v_off.limits = [0, 2e3] ;CUSTOMIZABLE
+  comp.par.v_off.expr   = 'na_OIII_5007_v_off + line_OIII_bw_v_off'
+  comp.par.norm.val     = 0
+  comp.enabled = gfit.comp.na_OIII_5007.enabled
+  gfit_add_comp, 'line_OIII_bw', comp
 
   ;;Add expressions
   gfit_add_aux, 'expr_BroadLines', $
@@ -1143,7 +1120,7 @@ PRO qsfit_add_lineset
   gfit.obs.(0).aux.expr_broadlines.plot.gp = 'w line ls 1 lw 2 lt rgb "blue"'
 
   tmp = STRJOIN('cc.na_' + lines[WHERE(lines.type EQ 'N'  OR  lines.type EQ 'BN')].name, ' + ')
-  IF (~!QSFIT_OPT.compat124) THEN tmp += ' + cc.line_OIII_bw'
+  tmp += ' + cc.line_OIII_bw'
   gfit_add_aux, 'expr_NarrowLines', tmp
                 
   gfit.obs.(0).aux.expr_narrowlines.plot.label = 'Narrow'
@@ -1171,13 +1148,7 @@ PRO qsfit_add_lineset
      qsfit_log, 'The velocity offsets of [OIII4959] and [OIII5007] are tied'
      gfit.comp.na_OIII_4959.par.v_off.expr = 'na_OIII_5007_v_off'
      gfit.comp.na_OIII_4959.par.v_off.fixed = 1
-  ENDIF $
-  ELSE BEGIN
-     IF (!QSFIT_OPT.compat124) THEN BEGIN
-        gfit.comp.na_OIII_4959.par.v_off.expr = '0'
-        gfit.comp.na_OIII_4959.par.v_off.fixed = 1
-     ENDIF
-  ENDELSE
+  ENDIF
 
   qsfit_compile
 END
@@ -2398,11 +2369,9 @@ FUNCTION qsfit_reduce
   out = CREATE_STRUCT(out, 'line_ha_base', tmp)
   alllines = [alllines, gstru_insert(tmp, 'line', 'line_ha_base', 0)]
 
-  IF (~!QSFIT_OPT.compat124) THEN BEGIN
-     tmp = qsfit_reduce_line( 'line_oiii_bw', gfit.comp.line_ha_base.par.center.val, /noassoc)
-     out = CREATE_STRUCT(out, 'line_oiii_bw', tmp)
-     alllines = [alllines, gstru_insert(tmp, 'line', 'line_oiii_bw', 0)]
-  ENDIF
+  tmp = qsfit_reduce_line( 'line_oiii_bw', gfit.comp.line_ha_base.par.center.val, /noassoc)
+  out = CREATE_STRUCT(out, 'line_oiii_bw', tmp)
+  alllines = [alllines, gstru_insert(tmp, 'line', 'line_oiii_bw', 0)]
 
   ;;Save also all the lines results as an array
   out = CREATE_STRUCT(out, 'lines', alllines)
@@ -2628,9 +2597,7 @@ PRO qsfit_run
         IF (~gfit.comp.(iunk).enabled) THEN CONTINUE
         
         IF (gfit.comp.(iunk).par.norm.val EQ 0.) THEN BEGIN
-           IF (~!QSFIT_OPT.compat124) THEN BEGIN
-              gfit.comp.(iunk).enabled = 0
-           ENDIF
+           gfit.comp.(iunk).enabled = 0
         ENDIF $
         ELSE BEGIN
            IF (gfit.comp.(iunk).par.norm.err / gfit.comp.(iunk).par.norm.val GT 3) THEN $
