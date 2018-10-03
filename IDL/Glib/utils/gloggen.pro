@@ -60,6 +60,6 @@ FUNCTION gloggen, _min, _max, _num
   ;; The following may lead to inconsistencies in calculation on
   ;; different machines
   ;; ret = 10.^(ggen(ALOG10(min), ALOG10(max), num))  ;; DO NOT USE THIS!
-  ret = min * (max/min)^(FINDGEN(num) / (num-1))
+  ret = min * ((max * 1.0)/min)^(FINDGEN(num) / (num-1))
   RETURN, ret
 END
