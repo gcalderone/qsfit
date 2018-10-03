@@ -199,7 +199,7 @@ PRO qsfit_comp_balmer_hol_prepare, hol_x, hol
      i += 1
      ;plot, hol_x, hol_y
   ENDFOR
-
+  IF (MIN(hol.y < 0)) THEN STOP
   SAVE, file=path + 'qsfit_comp_balmer_hol.dat', hol_x, hol, /compress
 END
 
@@ -362,8 +362,8 @@ FUNCTION qsfit_comp_balmer_cdata, comp, x, cdata
   PRINT, 'Interpolation of high order Balmer lines template...'
   hol_y = FLTARR(gn(x), gn(hol))
   FOR i=0, gn(hol)-1 DO $
-     hol_y[*,i] = INTERPOL(hol[i].y, hol_x, x)
-
+     hol_y[*,i] = INTERPOL(hol[i].y, hol_x, x) > 0
+  
   IF (comp.par.logT.fixed    AND  $
       comp.par.logTau.fixed  AND  $
       comp.par.fwhm.fixed)   THEN BEGIN
