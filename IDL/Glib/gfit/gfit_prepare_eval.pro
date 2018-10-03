@@ -37,16 +37,7 @@ PRO gfit_prepare_eval
            val = REPLICATE(gnan(), nn)
            IF (~gfit.comp.(icomp).enabled) THEN $
               val = gfit.comp.(icomp).disabled_val
-
-           IF (!QSFIT_OPT.compat124) THEN BEGIN
-              IF (cnames[icomp] EQ 'BALMER') THEN $
-                 tmp = CREATE_STRUCT(tmp, cnames[icomp], DOUBLE(val)) $
-              ELSE $
-                 tmp = CREATE_STRUCT(tmp, cnames[icomp], FLOAT(val))
-           ENDIF $
-           ELSE BEGIN
-              tmp = CREATE_STRUCT(tmp, cnames[icomp], FLOAT(val))
-           ENDELSE
+           tmp = CREATE_STRUCT(tmp, cnames[icomp], FLOAT(val))
         ENDFOR
      ENDIF
 
