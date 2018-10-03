@@ -98,6 +98,10 @@ PRO qsfit_prepare_options, DEFAULT=default
         ;; FWHM of the associated narrow line
         bn_Fwhmtied: 0b,           $
 
+        ;; If 1 use a further emission line component for the blue
+        ;; wing of the [OIII]5007 lne.
+        oiii5007_bluewing: 1b,     $
+
         ;; If 1 consider multiplicative absorption at wavelengths
         ;; shorter than 1216AA (EXPERIMENTAL: USE AT YOUR OWN RISK!)
         multiplicative_absorption: 0b  $
@@ -270,7 +274,7 @@ FUNCTION qsfit_input, x, y, e, TYPE=type, ID=id, Z=z, EBV=ebv
            de = gfloat(STRMID(de, 9))
            EULER, ra, de, glon, glat, 1
            dummy = EXECUTE('dummy = DUST_GETVAL()')
-           maps = FILE_DIRNAME(ROUTINE_FILEPATH('DUST_GETVAL', /is_function)) + PATH_SEP() + 'maps' + PATH_SEP() 
+           maps = FILE_DIRNAME(ROUTINE_FILEPATH('DUST_GETVAL', /is_function)) + PATH_SEP() + 'maps' + PATH_SEP()
            ebv = CALL_FUNCTION('DUST_GETVAL', glon, glat, /interp, /verbose, ipath=maps, map='Ebv')
         ENDIF
 
@@ -549,7 +553,7 @@ PRO qsfit_freeze, cont=cont, iron=iron, lines=lines
   COMPILE_OPT IDL2
   ON_ERROR, !glib.on_error
   COMMON GFIT
-     
+
   IF (N_ELEMENTS(cont) EQ 1) THEN BEGIN
      gfit.comp.continuum.par.norm.fixed = cont
      gfit.comp.continuum.par.x0.fixed   = 1
@@ -614,10 +618,12 @@ PRO qsfit_freeze, cont=cont, iron=iron, lines=lines
         gfit.comp.line_ha_base.par.v_off.fixed = lines
      ENDIF
 
-     IF (gfit.comp.line_oiii_bw.enabled) THEN BEGIN
-        gfit.comp.line_oiii_bw.par.norm.fixed = lines
-        gfit.comp.line_oiii_bw.par.fwhm.fixed = lines
-        gfit.comp.line_oiii_bw.par.v_off.fixed = lines
+     IF (!QSFIT_OPT.oiii5007_bluewing) THEN BEGIN
+        IF (gfit.comp.line_oiii_bw.enabled) THEN BEGIN
+           gfit.comp.line_oiii_bw.par.norm.fixed = lines
+           gfit.comp.line_oiii_bw.par.fwhm.fixed = lines
+           gfit.comp.line_oiii_bw.par.v_off.fixed = lines
+        ENDIF
      ENDIF
 
      gfit.comp.na_OIII_4959.par.v_off.fixed = 1
@@ -1000,7 +1006,7 @@ PRO qsfit_add_lineset
      comp.par.v_off.val   = 0
      comp.par.v_off.fixed = 0
      ;;comp.v_off.step  = 100 ;;CUSTOMIZABLE
-     
+
      comp.par.fwhm.fixed = 0
      comp.par.fwhm.expr = ''
 
@@ -1098,19 +1104,21 @@ PRO qsfit_add_lineset
   comp.enabled = gfit.comp.br_Ha.enabled
   gfit_add_comp, 'line_Ha_base', comp
 
-  ;;Add a line to account for the blue OIII wing
-  comp = gfit_component('qsfit_comp_emline')
-  comp.par.center.val   = gfit.comp.na_OIII_5007.par.center.val
-  comp.par.center.fixed = 1
-  comp.par.fwhm.val     = 500           ;CUSTOMIZABLE
-  comp.par.fwhm.limits  = [100, 1e3]    ;CUSTOMIZABLE
-  comp.par.fwhm.expr    = 'na_OIII_5007_fwhm + line_OIII_bw_fwhm'
-  comp.par.v_off.val    = 0
-  comp.par.v_off.limits = [0, 2e3] ;CUSTOMIZABLE
-  comp.par.v_off.expr   = 'na_OIII_5007_v_off + line_OIII_bw_v_off'
-  comp.par.norm.val     = 0
-  comp.enabled = gfit.comp.na_OIII_5007.enabled
-  gfit_add_comp, 'line_OIII_bw', comp
+  IF (!QSFIT_OPT.oiii5007_bluewing) THEN BEGIN
+     ;;Add a line to account for the blue OIII wing
+     comp = gfit_component('qsfit_comp_emline')
+     comp.par.center.val   = gfit.comp.na_OIII_5007.par.center.val
+     comp.par.center.fixed = 1
+     comp.par.fwhm.val     = 500        ;CUSTOMIZABLE
+     comp.par.fwhm.limits  = [100, 1e3] ;CUSTOMIZABLE
+     comp.par.fwhm.expr    = 'na_OIII_5007_fwhm + line_OIII_bw_fwhm'
+     comp.par.v_off.val    = 0
+     comp.par.v_off.limits = [0, 2e3] ;CUSTOMIZABLE
+     comp.par.v_off.expr   = 'na_OIII_5007_v_off + line_OIII_bw_v_off'
+     comp.par.norm.val     = 0
+     comp.enabled = gfit.comp.na_OIII_5007.enabled
+     gfit_add_comp, 'line_OIII_bw', comp
+  ENDIF
 
   ;;Add expressions
   gfit_add_aux, 'expr_BroadLines', $
@@ -1120,9 +1128,11 @@ PRO qsfit_add_lineset
   gfit.obs.(0).aux.expr_broadlines.plot.gp = 'w line ls 1 lw 2 lt rgb "blue"'
 
   tmp = STRJOIN('cc.na_' + lines[WHERE(lines.type EQ 'N'  OR  lines.type EQ 'BN')].name, ' + ')
-  tmp += ' + cc.line_OIII_bw'
+  IF (!QSFIT_OPT.oiii5007_bluewing) THEN BEGIN
+     tmp += ' + cc.line_OIII_bw'
+  ENDIF
   gfit_add_aux, 'expr_NarrowLines', tmp
-                
+
   gfit.obs.(0).aux.expr_narrowlines.plot.label = 'Narrow'
   gfit.obs.(0).aux.expr_narrowlines.plot.gp = 'w line ls 1 lw 2 lt rgb "dark-red"'
 
@@ -1328,7 +1338,7 @@ PRO qsfit_add_unknown
         ;;IF (ii[0] NE -1) THEN BEGIN
         ;;   mo[ii] = yy[ii]
         ;;ENDIF
-        
+
         ;;Do not add lines within 6000 km/s from the edges since these
         ;;may influence continuum fitting (6000 km/s / speed of light
         ;;= 0.02).
@@ -2341,7 +2351,7 @@ FUNCTION qsfit_reduce
   sum_wo_lines = gfit.obs.(0).eval.m
   sum_wo_lines /= (1. - out.expr.expr_abslines)
   sum_wo_lines -= (out.expr.expr_broadlines - out.expr.expr_narrowlines)
-  
+
   alllines = []
   FOR j=0, gn(lines)-1 DO BEGIN
      IF (lines[j].type EQ 'N'  OR  lines[j].type EQ 'BN') THEN BEGIN
@@ -2369,9 +2379,11 @@ FUNCTION qsfit_reduce
   out = CREATE_STRUCT(out, 'line_ha_base', tmp)
   alllines = [alllines, gstru_insert(tmp, 'line', 'line_ha_base', 0)]
 
-  tmp = qsfit_reduce_line( 'line_oiii_bw', gfit.comp.line_ha_base.par.center.val, /noassoc)
-  out = CREATE_STRUCT(out, 'line_oiii_bw', tmp)
-  alllines = [alllines, gstru_insert(tmp, 'line', 'line_oiii_bw', 0)]
+  IF (!QSFIT_OPT.oiii5007_bluewing) THEN BEGIN
+     tmp = qsfit_reduce_line( 'line_oiii_bw', gfit.comp.line_ha_base.par.center.val, /noassoc)
+     out = CREATE_STRUCT(out, 'line_oiii_bw', tmp)
+     alllines = [alllines, gstru_insert(tmp, 'line', 'line_oiii_bw', 0)]
+  ENDIF
 
   ;;Save also all the lines results as an array
   out = CREATE_STRUCT(out, 'lines', alllines)
@@ -2595,7 +2607,7 @@ PRO qsfit_run
         iunk = WHERE(TAG_NAMES(gfit.comp) EQ 'UNK' + gn2s(iiunk))
         gassert, iunk NE -1
         IF (~gfit.comp.(iunk).enabled) THEN CONTINUE
-        
+
         IF (gfit.comp.(iunk).par.norm.val EQ 0.) THEN BEGIN
            gfit.comp.(iunk).enabled = 0
         ENDIF $
@@ -2605,7 +2617,7 @@ PRO qsfit_run
         ENDELSE
         IF (~gfit.comp.(iunk).enabled) THEN BEGIN
            qsfit_log, 'Disabling line ' + (TAG_NAMES(gfit.comp))[iunk]
-           rerun = 1           
+           rerun = 1
         ENDIF
      ENDFOR
 
