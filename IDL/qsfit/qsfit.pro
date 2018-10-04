@@ -56,7 +56,7 @@ PRO qsfit_prepare_options, DEFAULT=default
         balmer_fixed_min_z: 1.1, $
 
         ;; Max redshift to keep the ironuv component fixed.
-        ironuv_fixed_max_z: 0.4, $
+        ironuv_fixed_max_z: 0., $
 
         ;; Galaxy template: SWIRE_ELL2 SWIRE_SC SWIRE_ARP220
         ;; etc... (see qsfit_comp_galaxytemplate.pro)
@@ -946,6 +946,9 @@ PRO qsfit_ignore_data_on_missing_lines
            qsfit_log, '   Ignoring data between ' + $
                       gn2s(ROUND(MIN(gfit.obs.(0).data.(0).x[tobeIgnored]))) + 'A and ' + $
                       gn2s(ROUND(MAX(gfit.obs.(0).data.(0).x[tobeIgnored]))) + 'A'
+
+           ;; NOTE: the following may introduce significant changes in
+           ;; DOF between ver. 1.2.4 and 2.0.0.
            gfit.obs.(0).data.(0).group[tobeIgnored]=-2
         ENDIF
      ENDIF
@@ -1185,7 +1188,7 @@ PRO qsfit_add_iron
   ironuv = gfit_component('qsfit_comp_ironuv')
 
   ironuv.par.ew.val    = 138
-  ironuv.par.ew.limits = [87, 218]
+  ironuv.par.ew.limits = [1, 218]
 
   IF (gfit.obs.(0).data.(0).udata.z GT !QSFIT_OPT.ironuv_fixed_max_z) THEN $
      ironuv.par.ew.fixed  = 0 $
@@ -1200,10 +1203,10 @@ PRO qsfit_add_iron
 
   gfit_add_comp, 'ironuv', ironuv
 
-  ;;IF (gfit.obs.(0).data.(0).udata.z LT 0.35) THEN BEGIN
-  ;;   qsfit_log, 'Iron UV is disabled'
-  ;;   gfit.comp.ironuv.enabled = 0
-  ;;ENDIF
+  IF (MIN(gfit.obs.(0).data.(0).x) GT 2900) THEN BEGIN
+     qsfit_log, 'Iron UV is disabled'
+     gfit.comp.ironuv.enabled = 0
+  ENDIF
 
   ;;Add optical iron template
   ironopt = gfit_component('qsfit_comp_ironoptical')
@@ -2349,7 +2352,7 @@ FUNCTION qsfit_reduce
   ;; Calculate the sum of all QSFit components except "known" emission lines
   sum_wo_lines = gfit.obs.(0).eval.m
   sum_wo_lines /= (1. - out.expr.expr_abslines)
-  sum_wo_lines -= (out.expr.expr_broadlines - out.expr.expr_narrowlines)
+  sum_wo_lines -= (out.expr.expr_broadlines + out.expr.expr_narrowlines)
 
   alllines = []
   FOR j=0, gn(lines)-1 DO BEGIN
