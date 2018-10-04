@@ -55,9 +55,6 @@ PRO qsfit_prepare_options, DEFAULT=default
         ;; Min redshift to keep the Balmer component fixed.
         balmer_fixed_min_z: 1.1, $
 
-        ;; Max redshift to keep the ironuv component fixed.
-        ironuv_fixed_max_z: 0., $
-
         ;; Galaxy template: SWIRE_ELL2 SWIRE_SC SWIRE_ARP220
         ;; etc... (see qsfit_comp_galaxytemplate.pro)
         galaxy_templ:       'SWIRE_ELL5', $
@@ -584,10 +581,6 @@ PRO qsfit_freeze, cont=cont, iron=iron, lines=lines
   ENDIF
 
   IF (N_ELEMENTS(iron) EQ 1) THEN BEGIN
-     IF (gfit.obs.(0).data.(0).udata.z GT !QSFIT_OPT.ironuv_fixed_max_z) THEN BEGIN
-        gfit.comp.ironuv.par.ew.fixed    = iron
-        gfit.comp.ironuv.par.fwhm.fixed  = 1
-     ENDIF
      gfit.comp.ironopt.par.norm_br.fixed = iron
      gfit.comp.ironopt.par.fwhm_br.fixed = 1
      gfit.comp.ironopt.par.norm_na.fixed = 1
@@ -1189,12 +1182,7 @@ PRO qsfit_add_iron
 
   ironuv.par.ew.val    = 138
   ironuv.par.ew.limits = [1, 218]
-
-  IF (gfit.obs.(0).data.(0).udata.z GT !QSFIT_OPT.ironuv_fixed_max_z) THEN $
-     ironuv.par.ew.fixed  = 0 $
-  ELSE $
-     ironuv.par.ew.fixed  = 1
-
+  ironuv.par.ew.fixed  = 0
   ironuv.par.fwhm.val    = 3000
   ironuv.par.fwhm.fixed  = 1
   ironuv.par.fwhm.limits = [1e3, 1e4]
@@ -1658,16 +1646,23 @@ FUNCTION qsfit_reduce_line, cname, wave, NOASSOC=noassoc
      line.ncomp    = 1
      line.lum      = gfit.comp.(assoc).par.norm.val
      line.lum_err  = gfit.comp.(assoc).par.norm.err
-     IF (gfit.comp.(assoc).par.fwhm.expr EQ '') THEN BEGIN
-        line.fwhm     = gfit.comp.(assoc).par.fwhm.val
-        line.fwhm_err = gfit.comp.(assoc).par.fwhm.err
-     ENDIF $
-     ELSE BEGIN
-        line.fwhm     = gfit.comp.(assoc).par.fwhm.actual
-        line.fwhm_err = gfit.comp.(assoc).par.fwhm.err / gfit.comp.(assoc).par.fwhm.val * gfit.comp.(assoc).par.fwhm.actual
-     ENDELSE
+     line.fwhm     = gfit.comp.(assoc).par.fwhm.val
+     line.fwhm_err = gfit.comp.(assoc).par.fwhm.err
      line.voff     = gfit.comp.(assoc).par.v_off.val
      line.voff_err = gfit.comp.(assoc).par.v_off.err
+
+     IF (gfit.comp.(assoc).par.fwhm.expr NE '') THEN BEGIN
+        line.lum      = gfit.comp.(assoc).par.norm.actual
+        line.lum_err  = gfit.comp.(assoc).par.norm.err / gfit.comp.(assoc).par.norm.val * gfit.comp.(assoc).par.norm.actual
+     ENDIF
+     IF (gfit.comp.(assoc).par.fwhm.expr NE '') THEN BEGIN
+        line.fwhm     = gfit.comp.(assoc).par.fwhm.actual
+        line.fwhm_err = gfit.comp.(assoc).par.fwhm.err / gfit.comp.(assoc).par.fwhm.val * gfit.comp.(assoc).par.fwhm.actual
+     ENDIF
+     IF (gfit.comp.(assoc).par.v_off.expr NE '') THEN BEGIN
+        line.voff     = gfit.comp.(assoc).par.v_off.actual
+        line.voff_err = gfit.comp.(assoc).par.v_off.err / gfit.comp.(assoc).par.v_off.val * gfit.comp.(assoc).par.v_off.actual
+     ENDIF
   ENDIF $
   ELSE BEGIN
      ;;At least two line components are going to be associated: save the
