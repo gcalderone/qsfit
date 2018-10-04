@@ -1653,15 +1653,15 @@ FUNCTION qsfit_reduce_line, cname, wave, NOASSOC=noassoc
 
      IF (gfit.comp.(assoc).par.fwhm.expr NE '') THEN BEGIN
         line.lum      = gfit.comp.(assoc).par.norm.actual
-        line.lum_err  = gfit.comp.(assoc).par.norm.err / gfit.comp.(assoc).par.norm.val * gfit.comp.(assoc).par.norm.actual
+        line.lum_err  = gfit.comp.(assoc).par.norm.err * ABS(gfit.comp.(assoc).par.norm.actual / gfit.comp.(assoc).par.norm.val)
      ENDIF
      IF (gfit.comp.(assoc).par.fwhm.expr NE '') THEN BEGIN
         line.fwhm     = gfit.comp.(assoc).par.fwhm.actual
-        line.fwhm_err = gfit.comp.(assoc).par.fwhm.err / gfit.comp.(assoc).par.fwhm.val * gfit.comp.(assoc).par.fwhm.actual
+        line.fwhm_err = gfit.comp.(assoc).par.fwhm.err * ABS(gfit.comp.(assoc).par.fwhm.actual / gfit.comp.(assoc).par.fwhm.val)
      ENDIF
      IF (gfit.comp.(assoc).par.v_off.expr NE '') THEN BEGIN
         line.voff     = gfit.comp.(assoc).par.v_off.actual
-        line.voff_err = gfit.comp.(assoc).par.v_off.err / gfit.comp.(assoc).par.v_off.val * gfit.comp.(assoc).par.v_off.actual
+        line.voff_err = gfit.comp.(assoc).par.v_off.err * ABS(gfit.comp.(assoc).par.v_off.actual / gfit.comp.(assoc).par.v_off.val)
      ENDIF
   ENDIF $
   ELSE BEGIN
