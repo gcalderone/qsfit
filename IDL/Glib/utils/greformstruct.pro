@@ -23,7 +23,7 @@ FUNCTION greformstruct $
      ret = gstru_insert(ret, tagn[i], (s.(i))[0])
   
   ;;Array of structures
-  ret = REPLICATE(ret, n)
+  ret = REPLICATE(ret, n[0])
   
   ;;Copy data
   FOR i=0, nf-1 DO $
