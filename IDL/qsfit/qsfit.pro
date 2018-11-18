@@ -2745,8 +2745,8 @@ PRO qsfit_plot, red, FILENAME=filename, s11=s11, RESID=resid, TERM=term
      IF (lines[i].type EQ 'A') THEN BEGIN
         lineName = STRUPCASE(lines[i].name)
         icomp = WHERE(TAG_NAMES(gfit.comp) EQ lineName)
-        ggp_data, gfit.comp.(icomp).par.center.val*[1,1], gminmax(red.gfit.obs.(0).eval.y), $
-                  pl='w l notit dt 2 lc rgb "red"'
+        ggp_data, gfit.comp.(icomp).par.center.val*[1,1], [0., MAX(red.gfit.obs.(0).eval.y)], $
+                  pl='w l notit dt 2 lc rgb "gray"'
      ENDIF
   ENDFOR
 
