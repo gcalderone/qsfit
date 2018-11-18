@@ -63,6 +63,7 @@ PRO gcompile_glib, path
   FORWARD_FUNCTION gfit_comp_simplepar
   FORWARD_FUNCTION gfit_weighted_dev_gauss
   FORWARD_FUNCTION gfit_component
+  FORWARD_FUNCTION gfit_parse_comp_from_text
   FORWARD_FUNCTION gfit_get_covar
   FORWARD_FUNCTION gfit_get_par
   FORWARD_FUNCTION gfit_nfree
@@ -164,6 +165,7 @@ PRO gcompile_glib, path
   gcompile, /hold, path + 'gfit/data_type/gfit_weighted_dev_gauss.pro'
   gcompile, /hold, path + 'gfit/gfit_add_obs.pro'
   gcompile, /hold, path + 'gfit/gfit_add_comp.pro'
+  gcompile, /hold, path + 'gfit/gfit_parse_comp_from_text.pro'
   gcompile, /hold, path + 'gfit/gfit_add_data.pro'
   gcompile, /hold, path + 'gfit/gfit_add_aux.pro'
   gcompile, /hold, path + 'gfit/gfit_prepare_eval.pro'
