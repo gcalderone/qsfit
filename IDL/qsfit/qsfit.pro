@@ -1239,15 +1239,23 @@ PRO qsfit_add_unknown
         ;;IF (ABS(gfit.obs.(0).data.(0).udata.z - 0.5) LT 0.2) THEN BEGIN
         ;;   ii = WHERE((xx GT 4350 AND xx LT 4860)  OR   $
         ;;              (xx GT 5150 AND xx LT 5520))
-        ;;   IF (ii[0] NE -1) THEN $
-        ;;      mo[ii] = yy[ii]
+        ;;   IF (ii[0] NE -1) THEN mo[ii] = yy[ii]
         ;;ENDIF
 
         ;;;; Avoid adding lines around MgII line
         ;;ii = WHERE(xx GT 2700 AND xx LT 2900)
-        ;;IF (ii[0] NE -1) THEN BEGIN
-        ;;   mo[ii] = yy[ii]
-        ;;ENDIF
+        ;;IF (ii[0] NE -1) THEN mo[ii] = yy[ii]
+
+        ;; Avoid adding lines around absorption lines
+        lines = qsfit_lineset()
+        FOR j=0, gn(lines)-1 DO BEGIN
+           IF (lines[j].type EQ 'A') THEN BEGIN
+              comp = gfit.comp.(WHERE(TAG_NAMES(gfit.comp) EQ STRUPCASE(lines[j].name)))
+              tmp = comp.par.center.val + [-1,1] * comp.par.fwhm.val/3.e5 * comp.par.center.val
+              ii = WHERE(xx GT tmp[0]  AND   xx LT tmp[1])
+              IF (ii[0] NE -1) THEN mo[ii] = yy[ii]
+           ENDIF
+        ENDFOR
 
         ;;Do not add lines within 6000 km/s from the edges since these
         ;;may influence continuum fitting (6000 km/s / speed of light
