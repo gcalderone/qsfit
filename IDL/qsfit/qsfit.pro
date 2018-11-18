@@ -37,8 +37,8 @@ END
 ;
 FUNCTION qsfit_options
   opt = { $
-        lines_list: FILE_DIRNAME(ROUTINE_FILEPATH('qsfit', /is_function)) + PATH_SEP() + 'lines.list', $
-        lines_add: [""]        , $
+        lines_file: FILE_DIRNAME(ROUTINE_FILEPATH('qsfit', /is_function)) + PATH_SEP() + 'lines.list', $
+        lines:           LIST(), $
 
         ;; The number of unknown lines whose center wavelength is not
         ;; a-priori assigned: they are placed (after all other
@@ -590,15 +590,19 @@ PRO qsfit_freeze, cont=cont, iron=iron, lines=lines
      FOR i=0, N_TAGS(gfit.comp)-1 DO BEGIN
         IF (gfit.comp.(i).funcName EQ 'qsfit_comp_emline') THEN BEGIN
            IF ((gfit.comp.(i).enabled)) THEN BEGIN
-              IF (STRMID(STRUPCASE(cnames[i]), 0, 4) EQ 'LINE') THEN $
-                 CONTINUE
+              prefix = STRMID(STRUPCASE(cnames[i]), 0, 3)
+              IF ((prefix EQ 'BR_')  OR  $
+                  (prefix EQ 'NA_')  OR  $
+                  (prefix EQ 'UNK')  OR  $
+                  (prefix EQ 'ABS')) THEN BEGIN
 
-              gfit.comp.(i).par.norm.fixed = lines
-              gfit.comp.(i).par.fwhm.fixed = lines
+                 gfit.comp.(i).par.norm.fixed = lines
+                 gfit.comp.(i).par.fwhm.fixed = lines
 
-              isUnk = (STRMID(STRUPCASE(cnames[i]), 0, 3) EQ 'UNK')
-              IF (isUnk) THEN gfit.comp.(i).par.center.fixed = lines  $
-              ELSE            gfit.comp.(i).par.v_off.fixed  = lines
+                 IF ((prefix EQ 'UNK')  OR  $
+                     (prefix EQ 'ABS')) THEN gfit.comp.(i).par.center.fixed = lines  $
+                 ELSE                        gfit.comp.(i).par.v_off.fixed  = lines
+              ENDIF
            ENDIF
         ENDIF
      ENDFOR
@@ -858,13 +862,16 @@ FUNCTION qsfit_lineset, PARSE=parse
 
   IF (KEYWORD_SET(parse)) THEN BEGIN
      comp = gfit_component('qsfit_comp_emline')
-     lines = gfit_parse_comp_from_text(comp, file=qsfitOpt.lines_list)
+     tmp = ""
+     IF (gn(qsfitOpt.lines) GT 0) THEN $
+        tmp = qsfitOpt.lines.toArray()
 
-     IF (qsfitOpt.lines_add[0] NE "") THEN $
-        lines = [lines, gfit_parse_comp_from_text(comp, qsfitOpt.lines_add)]
+     lines = gfit_parse_comp_from_text(comp, tmp, file=qsfitOpt.lines_file)
+
      i = WHERE(lines.comp.par.center.val GT qsfitOpt.min_wavelength)
      lines = lines[i]
   ENDIF
+
   RETURN, lines
 END
 
@@ -1044,12 +1051,12 @@ PRO qsfit_add_lineset
   gfit.obs.(0).aux.expr_narrowlines.plot.gp = 'w line ls 1 lw 2 lt rgb "dark-red"'
 
   IF (gsearch(lines.type EQ 'A', i)) THEN $
-     gfit_add_aux, 'expr_AbsLines', STRJOIN('cc.abs_' + lines[i].name, ' + ') $
+     gfit_add_aux, 'expr_AbsLines', STRJOIN('cc.' + lines[i].name, ' + ') $
   ELSE $
      gfit_add_aux, 'expr_AbsLines', '0'
   gfit.obs.(0).aux.expr_abslines.plot.label = 'Absorption'
   gfit.obs.(0).aux.expr_abslines.plot.gp = 'w line ls 1 lw 2 lt rgb "black"'
-  gfit.obs.(0).aux.expr_abslines.plot.enable = 1 ;;Do not show this expression in plots
+  gfit.obs.(0).aux.expr_abslines.plot.enable = 0 ;;Do not show this expression in plots
 
   IF (qsfitOpt.unkLines GT 0) THEN $
      gfit_add_aux, 'expr_Unknown', STRJOIN('cc.unk' + gn2s(INDGEN(qsfitOpt.unkLines)+1), ' + ') $
@@ -2313,7 +2320,7 @@ FUNCTION qsfit_reduce
   alllines = []
   FOR j=0, gn(lines)-1 DO BEGIN
      IF (lines[j].type EQ 'A') THEN BEGIN
-        lineName = 'ABS_' + STRUPCASE(lines[j].name)
+        lineName = STRUPCASE(lines[j].name)
         icomp = WHERE(TAG_NAMES(gfit.comp) EQ lineName)
         IF (icomp[0] EQ -1) THEN $
            MESSAGE, 'No component named: ' + lineName
@@ -2736,10 +2743,10 @@ PRO qsfit_plot, red, FILENAME=filename, s11=s11, RESID=resid, TERM=term
   lines = qsfit_lineset()
   FOR i=0, gn(lines)-1 DO BEGIN
      IF (lines[i].type EQ 'A') THEN BEGIN
-        lineName = 'ABS_' + STRUPCASE(lines[i].name)
+        lineName = STRUPCASE(lines[i].name)
         icomp = WHERE(TAG_NAMES(gfit.comp) EQ lineName)
-        ;;ggp_data, gfit.comp.(icomp).par.center.val*[1,1], gminmax(red.gfit.obs.(0).eval.y), $
-        ;;          pl='w l notit dt 2 lc rgb "red"'
+        ggp_data, gfit.comp.(icomp).par.center.val*[1,1], gminmax(red.gfit.obs.(0).eval.y), $
+                  pl='w l notit dt 2 lc rgb "red"'
      ENDIF
   ENDFOR
 

@@ -30,7 +30,7 @@
 ;
 ;NOTES:
 ;
-FUNCTION gfit_parse_comp_from_text, comp, text, FILE=file
+FUNCTION gfit_parse_comp_from_text, comp, in_text, FILE=file
   COMPILE_OPT IDL2
   ON_ERROR, !glib.on_error
 
@@ -44,6 +44,7 @@ FUNCTION gfit_parse_comp_from_text, comp, text, FILE=file
      ENDWHILE
      FREE_LUN, lun
   ENDIF
+  text = [text, in_text]
   
   templates = HASH()
   str = { name: '', $
@@ -51,17 +52,18 @@ FUNCTION gfit_parse_comp_from_text, comp, text, FILE=file
           comp: comp }
   out = LIST()
   
-  columns = []
+  parnames = []
   FOR itext=0, gn(text)-1 DO BEGIN
+     IF (itext EQ gn(text)-gn(in_text)) THEN parnames = []
+     
      l = text[itext]
      l = STRTRIM(l, 2)
      IF (l EQ '') THEN CONTINUE
      IF (STRMID(l, 0, 1) EQ '#') THEN CONTINUE ;;Comment
      l = STRTRIM(STRSPLIT(l, '|', /PRESERVE_NULL, /EXTRACT), 2)
 
-     IF (gn(columns) EQ 0) THEN BEGIN
-        columns = l
-        IF (columns[0] NE "Name") THEN MESSAGE, 'First column must be "Name"'
+     IF (gn(parnames) EQ 0) THEN BEGIN
+        IF (l[0] NE "Name") THEN MESSAGE, 'First column must be "Name"'
         parnames = l[1:-1]
      ENDIF $
      ELSE BEGIN
@@ -94,7 +96,6 @@ FUNCTION gfit_parse_comp_from_text, comp, text, FILE=file
                  e = "newcomp." + d[j]
               ENDELSE
               IF (e NE "") THEN BEGIN
-                 PRINT, e
                  IF (~EXECUTE(e)) THEN $
                     MESSAGE, 'An error occurred while executing: ' + e
               ENDIF
