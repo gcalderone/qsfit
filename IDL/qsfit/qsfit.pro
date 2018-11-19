@@ -100,7 +100,6 @@ FUNCTION qsfit_options
         multiplicative_absorption: 0b  $
         }
 
-                                ;  TODO IF (str.wave GT qsfitOpt.min_wavelength) THEN lines.add, str
   RETURN, opt
 END
 
@@ -2100,14 +2099,11 @@ FUNCTION qsfit_reduce
   ;;Save also all the continuum estimates as an array
   out = CREATE_STRUCT(out, 'cont', allcont)
 
-
-
   ;;--------------------------
   ;;Reduce iron templates data
   gassert, gfit.comp.ironuv.par.ew.val       GE 0
   gassert, gfit.comp.ironopt.par.norm_br.val GE 0
   gassert, gfit.comp.ironopt.par.norm_na.val GE 0
-
 
   i = WHERE(TAG_NAMES(gfit.comp) EQ 'IRONUV')
   gassert, i[0] NE -1
@@ -2342,8 +2338,8 @@ FUNCTION qsfit_reduce
         tmp.center_err = l.center.err
         tmp.quality    = 0
 
-        tmp.ew = tmp.norm / INTERPOL(sum_wo_lines, gfit.obs.(0).eval.x, tmp.center, /nan)
-        tmp.ew_err = tmp.ew / tmp.norm * tmp.norm_err
+        tmp.ew = tmp.norm ;/ INTERPOL(sum_wo_lines, gfit.obs.(0).eval.x, tmp.center, /nan)
+        tmp.ew_err = tmp.norm_err ;tmp.ew / tmp.norm * tmp.norm_err
 
         out = CREATE_STRUCT(out, lineName, tmp)
         alllines = [alllines, gstru_insert(tmp, 'line', lineName, 0)]
@@ -2853,6 +2849,7 @@ END
 FUNCTION qsfit, input, OUTNAME=outname, PROCID=procid, TICTOC=tictoc, RESAMPLE=resample
   COMPILE_OPT IDL2
   COMMON GFIT
+  COMMON COM_QSFITOPT
   COMMON COM_RESAMPLING, unkCenter, unkEnabled
   ON_ERROR, !glib.on_error
 
@@ -2890,6 +2887,8 @@ FUNCTION qsfit, input, OUTNAME=outname, PROCID=procid, TICTOC=tictoc, RESAMPLE=r
      IF (gfexists(file_dat))  THEN BEGIN
         gprint, 'File ' + file_dat + ' already exists'
         RESTORE, file_dat
+        qsfitOpt = qsfit_res.gfit.obs.(0).data.(0).udata.opt
+        dumy = qsfit_lineset(/parse)
         RETURN, qsfit_res
      ENDIF
   ENDIF
