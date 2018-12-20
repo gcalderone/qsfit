@@ -16,7 +16,5 @@ analyze spectra from other data sources.
 
 The main website is: [http://qsfit.inaf.it](http://qsfit.inaf.it).
 
-(If you're not able to access this site try [http://ross2.iasfbo.inaf.it/qsfit/](http://ross2.iasfbo.inaf.it/qsfit/))
-
 The reference paper is: https://arxiv.org/abs/1612.01580
 
