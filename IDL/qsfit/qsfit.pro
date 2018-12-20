@@ -232,7 +232,23 @@ FUNCTION qsfit_input, x, y, e, OPT=opt, TYPE=type, ID=id, Z=z, EBV=ebv
   COMMON COM_QSFITOPT, qsfitOpt
 
   IF (gn(opt) EQ 0) THEN qsfitOpt = qsfit_options() ELSE qsfitOpt = opt
-  IF (gn(type) EQ 0) THEN type = 'DATA'
+  IF (gn(type) EQ 0) THEN type = 'DATA' $
+
+  ELSE BEGIN
+
+  ;;Manage tsv and csv ASCII files; json and VOTable are TBD
+     ascii_type = STRUPCASE(type)
+     CASE (ascii_type) OF
+        'TSV': sep = STRING(9b)
+        'CSV': sep = ','
+        'TXT': sep = ' '
+        'ASCII': sep = ' '
+        ELSE: sep = ''
+     ENDCASE
+
+     IF (sep NE '') THEN type = 'ASCII'
+
+  ENDELSE
 
   CASE (type) OF
      'DATA': BEGIN
@@ -292,7 +308,7 @@ FUNCTION qsfit_input, x, y, e, OPT=opt, TYPE=type, ID=id, Z=z, EBV=ebv
         IF (~gfexists(file)) THEN $
            MESSAGE, 'File: ' + file + ' does not exists'
         template = {x: 0.d, y: 0.d, e: 0.d}
-        data = greadtexttable(file, ' ', /dropnull, template=template)
+        data = greadtexttable(file, sep, /dropnull, template=template)
         xx = data.x
         yy = data.y
         ee = data.e
