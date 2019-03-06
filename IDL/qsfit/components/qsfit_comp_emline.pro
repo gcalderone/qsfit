@@ -69,11 +69,10 @@ END
 FUNCTION qsfit_comp_emline, x, norm, center, v_off, fwhm
   COMPILE_OPT IDL2
   ON_ERROR, !glib.on_error
-  COMMON COM_QSFITOPT, qsfitOpt
 
   IF (norm EQ 0) THEN RETURN, 0.
 
-  IF (qsfitOpt.lorentzian) THEN BEGIN
+  IF (!QSFIT_OPT.lorentzian) THEN BEGIN
      x0 = center - (v_off / 3.e5) * center
      xx = (x - x0) / (fwhm / 3.e5 * center / 2.)
      RETURN, FLOAT(norm / (1 + xx^2.))

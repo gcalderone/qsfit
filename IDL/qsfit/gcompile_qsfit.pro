@@ -59,7 +59,6 @@ PRO gcompile_qsfit, path
   FORWARD_FUNCTION qsfit_galaxy_quality_meaning
   FORWARD_FUNCTION qsfit_flatten_results
   FORWARD_FUNCTION qsfit_input
-  FORWARD_FUNCTION qsfit_options
   FORWARD_FUNCTION qsfit
 
   ;;List of .pro files to be compiled
@@ -76,6 +75,7 @@ PRO gcompile_qsfit, path
 
   ;;Compile the package
   gcompile
+  qsfit_prepare_options
 
   PRINT, 'QSFIT version: ' + qsfit_version()
 END
