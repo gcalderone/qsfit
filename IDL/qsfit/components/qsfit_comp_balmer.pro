@@ -228,7 +228,7 @@ PRO qsfit_comp_balmer_continuum, x, logT, logTau, fwhm, bac, bac_at_edge
   bac = b * (1.d - EXP(-(tau * (xx/edge)^3.d)))
   bac[WHERE(xx GE edge)] = 0.
   bac /= MAX(bac)
-  
+
   ;;Broadening
   s = (fwhm / 3.e5) * ((xx[1]+xx[0])/2.) / 2.35 / (xx[1]-xx[0])
   bac = CONVOL(bac, GAUSSIAN_FUNCTION(s, width=s*6), /edge_truncate, /center)
@@ -403,7 +403,7 @@ FUNCTION qsfit_comp_balmer, x, norm, ratio, logT, logNe, logTau, fwhm, cont3000,
   ENDIF ELSE BEGIN
      qsfit_comp_balmer_continuum, x, logT, logTau, fwhm, bac, bac_at_edge
   ENDELSE
-
+  
   ;;PLOT , x, bac
   ;;OPLOT, x, ratio * bac_at_edge * curr[*,iHOL], col=255
 
@@ -426,11 +426,11 @@ PRO qsfit_comp_balmer_test
   y2 = qsfit_comp_balmer(x, 1, 0.5, ALOG10(15000), 9, 0, 5000, 1, cdata=cdata)
 
   ggp_clear
-  ggp_cmd, 'set key left', $
+  ggp_cmd, 'set key left', yr=[0,1.1], $
            xtit='Wavelength [A]', ytit='Lum. density [arb.units]'
   ggp_data, x, y1, pl='w l tit "ratio=1" lw 2 lc rgb "red"'
   ggp_data, x, y2, pl='w l tit "ratio=0.5" lw 2 lc rgb "blue"'
-  ggp_data, 3645.07*[1,1], [0, 1.4], pl='w l tit "Balmer edge" dt 4 lc rgb "black"'
+  ggp_data, 3645.07*[1,1], [0, 1.1], pl='w l tit "Balmer edge" dt 4 lc rgb "black"'
   ;ggp, term='pdf fontscale 0.65 linewidth 1.3', out='qsfit_comp_balmer_test.pdf'
-  ggp, term='pdf', out='qsfit_comp_balmer_test.pdf'
+  ggp                           ;, term='pdf', out='qsfit_comp_balmer_test.pdf'
 END
