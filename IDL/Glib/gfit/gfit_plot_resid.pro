@@ -58,7 +58,7 @@ PRO gfit_plot_resid, OBS=iobs
      x = obs.eval.x[j]
      y = (obs.eval.y[j] - obs.eval.m[j]) / obs.eval.e[j]
      gfit_rebin, obs.plot.rebin, x, y
-     ggp_data, x, y, plot='w points title "' + plot.label + '" ' + plot.gp
+     ggp_data, x, y, plot='w points title "' + plot.label + '" lc rgb "black"'
   ENDFOR
 
   ;;Horizontal "zero" line
