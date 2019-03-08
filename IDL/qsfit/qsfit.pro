@@ -342,7 +342,7 @@ FUNCTION qsfit_input, x, y, e, TYPE=type, ID=id, Z=z, EBV=ebv
            median_y: gnan()   , $
            median_e: gnan()   , $
            flux2lum: gnan()   , $
-           plot: { label: 'Data', gp: ''} $
+           plot: { label: 'Data', gp: 'pt 0'} $
           }
 
   iGood = WHERE(good)
@@ -2509,15 +2509,10 @@ END
 ;
 PRO qsfit_show_step, filename
   COMMON GFIT
-  ;filename = []
-
   IF (~!QSFIT_OPT.show_step) THEN RETURN
-
-  title = gfit.obs.(0).plot.title
-  rebin = gfit.obs.(0).plot.rebin
-
-  gfit.obs.(0).plot.title = ''
-  gfit.obs.(0).plot.rebin = 1
+  filename = []
+  ;gfit.obs.(0).plot.title = ''
+  ;gfit.obs.(0).plot.rebin = 1
 
   gfit_plot
   ggp_cmd, 'set key horizontal'
@@ -2528,8 +2523,6 @@ PRO qsfit_show_step, filename
   IF (gn(filename) EQ 1) THEN ggp, term='pdf fontscale 0.65 linewidth 1.3', out=filename + '_resid.pdf' $
   ELSE ggp
 
-  gfit.obs.(0).plot.title = title
-  gfit.obs.(0).plot.rebin = rebin
   gfit_report, /all
   gkey
 END
