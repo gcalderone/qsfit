@@ -92,7 +92,8 @@ PRO qsfit_prepare_options, DEFAULT=default
         lorentzian: 0b,            $
 
         ;; If 1 tie the FWHM of broad component to be larger than the
-        ;; FWHM of the associated narrow line
+        ;; FWHM of the associated narrow line.  (EXPERIMENTAL: USE AT
+        ;; YOUR OWN RISK!)
         bn_Fwhmtied: 0b,           $
 
         ;; If 1 use a further emission line component for the blue

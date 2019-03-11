@@ -1,34 +1,41 @@
-- Mar. 21, 2018  (ver. 1.3.0, not yet released)
-
-	+ This release implements a new feature which allows to fit
-	multiple spectra simultaneously, against either a single or
-	multiple model expressions.  Also, this release is significantly
-	faster (35-40%) than the previous one;
-
+- Mar. 11, 2019  (ver. 1.3.0)
 	+ The code has been largely refactored to implement the new
-	features, but the results are identical to the previous version
-	(v1.2.4) within the numerical accuracy, provided the
-	!QSFIT_OPT.compat124 variable is set to 1.  By setting this
-	variable to zero a few, minor, bugfix will come into play which
-	may affect the results in a few cases.  The differences are
-	however expected to be smaller than the quoted uncertainties;
+	features, performance has improved, and a couple of emission lines
+	have been added, hence the results may be different from the v1.2.4
+	Catalog, although they are typically compatible within the quoted
+	uncertainties.  In some case of strong correlation among fitting
+	parameters the results may be significantly different;
 
-	+ The calling sequence has changed to accomodate the new features,
-	see the USAGE file for an example.
+	+ QSFit now supports fitting of absorption lines but their
+	location can not be automatically determined, and a first guess
+	for the rest frame wavelength must be manually provided.  See the
+	USAGE file for an example.
+
+	+ Emission lines can now have a Lorentzian profile (rather than a
+	Gaussian one).  See the USAGE file for an example.
+
+	+ The calling sequence has changed to accomodate the possibility to fit
+	multiple spectra simultaneously.  See the USAGE file for an example.
+
+	+ Lower limit for EW iron UV is 1.  Iron UV is disabled if
+	MIN(wavelength) > 2900.  The `ironuv_fixed_max_z` configuration
+	option has beenn drooped;
 
 	+ The `tied` field of the parameter structure has been renamed to
 	`expr`, and its purpose changed: when used with `fixed=0` it
 	allows to specify a mathematical expression (possibly involving
 	other parameters) evaluated before passing the result to the
-	component function.  When used with `fixed=0` it is used to tie
+	component function.  When used with `fixed=1` it is used to tie
 	the value to other parameters (old behaviour);
 
-	+ A new emissione line component has been added to account for the
-	[OIII]5007 blue wing.  It is constrained to have a FWHM larger
-	than the main [OIII]5007 by an amount in the range 100,1000 km/s,
-	and a blue velocity shift in the range 0,2000 km/s with the
-	respect to the main line.  The name f this new component is
-	`line_oiii_bw`;
+	+ New emission line components: CII] 2326 and [OIII]5007 blue
+	wing. The latter accountsfor the [OIII]5007 blue wing.  It is
+	constrained to have a FWHM larger than the main [OIII]5007 by an
+	amount in the range 100:1000 km/s, and a blue velocity shift in
+	the range 0:2000 km/s with the respect to the main line.  The name
+	of this new component is `line_oiii_bw`;
+
+
 
 - Mar. 03, 2018  (ver. 1.2.4)
 	+ All calculations are now forced to be done with DOUBLE precision.
