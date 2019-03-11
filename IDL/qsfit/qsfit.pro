@@ -343,7 +343,7 @@ FUNCTION qsfit_input, x, y, e, TYPE=type, ID=id, Z=z, EBV=ebv
            median_y: gnan()   , $
            median_e: gnan()   , $
            flux2lum: gnan()   , $
-           plot: { label: 'Data', gp: 'pt 0'} $
+           plot: { label: 'Data', gp: ''} $
           }
 
   iGood = WHERE(good)
