@@ -74,8 +74,9 @@ FUNCTION qsfit_comp_emline, x, norm, center, v_off, fwhm
 
   IF (!QSFIT_OPT.lorentzian) THEN BEGIN
      x0 = center - (v_off / 3.e5) * center
-     xx = (x - x0) / (fwhm / 3.e5 * center / 2.)
-     RETURN, FLOAT(norm / (1 + xx^2.))
+     w = fwhm / 3.e5 * center
+     xx = (x - x0) / (w / 2.)
+     RETURN, FLOAT(norm / (1 + xx^2.) / (w * !PI/2))
   ENDIF
 
   x0    = center - (v_off / 3.e5) * center
