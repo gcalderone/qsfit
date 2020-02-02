@@ -2387,7 +2387,7 @@ FUNCTION qsfit_reduce
   alllines = [alllines, gstru_insert(tmp, 'line', 'line_ha_base', 0)]
 
   IF (!QSFIT_OPT.oiii5007_bluewing) THEN BEGIN
-     tmp = qsfit_reduce_line( 'line_oiii_bw', gfit.comp.line_ha_base.par.center.val, /noassoc)
+     tmp = qsfit_reduce_line( 'line_oiii_bw', gfit.comp.line_oiii_bw.par.center.val, /noassoc)
      out = CREATE_STRUCT(out, 'line_oiii_bw', tmp)
      alllines = [alllines, gstru_insert(tmp, 'line', 'line_oiii_bw', 0)]
   ENDIF
