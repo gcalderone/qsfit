@@ -98,7 +98,11 @@ PRO qsfit_prepare_options, DEFAULT=default
 
         ;; If 1 use a further emission line component for the blue
         ;; wing of the [OIII]5007 lne.
-        oiii5007_bluewing: 1b,     $
+        oiii_5007_bluewing: 1b,     $
+
+        ;; If 1 use a further emission line component for the blue
+        ;; wing of the [OIII]4959 lne.
+        oiii_4959_bluewing: 0b,     $
 
         ;; If 1 consider multiplicative absorption at wavelengths
         ;; shorter than 1216AA (EXPERIMENTAL: USE AT YOUR OWN RISK!)
@@ -612,11 +616,19 @@ PRO qsfit_freeze, cont=cont, iron=iron, lines=lines
         gfit.comp.line_ha_base.par.v_off.fixed = lines
      ENDIF
 
-     IF (!QSFIT_OPT.oiii5007_bluewing) THEN BEGIN
-        IF (gfit.comp.line_oiii_bw.enabled) THEN BEGIN
-           gfit.comp.line_oiii_bw.par.norm.fixed = lines
-           gfit.comp.line_oiii_bw.par.fwhm.fixed = lines
-           gfit.comp.line_oiii_bw.par.v_off.fixed = lines
+     IF (!QSFIT_OPT.oiii_5007_bluewing) THEN BEGIN
+        IF (gfit.comp.line_oiii_5007_bw.enabled) THEN BEGIN
+           gfit.comp.line_oiii_5007_bw.par.norm.fixed = lines
+           gfit.comp.line_oiii_5007_bw.par.fwhm.fixed = lines
+           gfit.comp.line_oiii_5007_bw.par.v_off.fixed = lines
+        ENDIF
+     ENDIF
+
+     IF (!QSFIT_OPT.oiii_4959_bluewing) THEN BEGIN
+        IF (gfit.comp.line_oiii_4959_bw.enabled) THEN BEGIN
+           gfit.comp.line_oiii_4959_bw.par.norm.fixed = lines
+           gfit.comp.line_oiii_4959_bw.par.fwhm.fixed = lines
+           gfit.comp.line_oiii_4959_bw.par.v_off.fixed = lines
         ENDIF
      ENDIF
 
@@ -1101,20 +1113,36 @@ PRO qsfit_add_lineset
   comp.enabled = gfit.comp.br_Ha.enabled
   gfit_add_comp, 'line_Ha_base', comp
 
-  IF (!QSFIT_OPT.oiii5007_bluewing) THEN BEGIN
+  IF (!QSFIT_OPT.oiii_5007_bluewing) THEN BEGIN
      ;;Add a line to account for the blue OIII wing
      comp = gfit_component('qsfit_comp_emline')
      comp.par.center.val   = gfit.comp.na_OIII_5007.par.center.val
      comp.par.center.fixed = 1
      comp.par.fwhm.val     = 500        ;CUSTOMIZABLE
      comp.par.fwhm.limits  = [100, 1e3] ;CUSTOMIZABLE
-     comp.par.fwhm.expr    = 'na_OIII_5007_fwhm + line_OIII_bw_fwhm'
+     comp.par.fwhm.expr    = 'na_OIII_5007_fwhm + line_OIII_5007_bw_fwhm'
      comp.par.v_off.val    = 0
      comp.par.v_off.limits = [0, 2e3] ;CUSTOMIZABLE
-     comp.par.v_off.expr   = 'na_OIII_5007_v_off + line_OIII_bw_v_off'
+     comp.par.v_off.expr   = 'na_OIII_5007_v_off + line_OIII_5007_bw_v_off'
      comp.par.norm.val     = 0
      comp.enabled = gfit.comp.na_OIII_5007.enabled
-     gfit_add_comp, 'line_OIII_bw', comp
+     gfit_add_comp, 'line_OIII_5007_bw', comp
+  ENDIF
+
+  IF (!QSFIT_OPT.oiii_4959_bluewing) THEN BEGIN
+     ;;Add a line to account for the blue OIII wing
+     comp = gfit_component('qsfit_comp_emline')
+     comp.par.center.val   = gfit.comp.na_OIII_4959.par.center.val
+     comp.par.center.fixed = 1
+     comp.par.fwhm.val     = 500        ;CUSTOMIZABLE
+     comp.par.fwhm.limits  = [100, 1e3] ;CUSTOMIZABLE
+     comp.par.fwhm.expr    = 'na_OIII_4959_fwhm + line_OIII_4959_bw_fwhm'
+     comp.par.v_off.val    = 0
+     comp.par.v_off.limits = [0, 2e3] ;CUSTOMIZABLE
+     comp.par.v_off.expr   = 'na_OIII_4959_v_off + line_OIII_4959_bw_v_off'
+     comp.par.norm.val     = 0
+     comp.enabled = gfit.comp.na_OIII_4959.enabled
+     gfit_add_comp, 'line_OIII_4959_bw', comp
   ENDIF
 
   ;;Add expressions
@@ -1125,9 +1153,8 @@ PRO qsfit_add_lineset
   gfit.obs.(0).aux.expr_broadlines.plot.gp = 'w line ls 1 lw 2 lt rgb "blue"'
 
   tmp = STRJOIN('cc.na_' + lines[WHERE(lines.type EQ 'N'  OR  lines.type EQ 'BN')].name, ' + ')
-  IF (!QSFIT_OPT.oiii5007_bluewing) THEN BEGIN
-     tmp += ' + cc.line_OIII_bw'
-  ENDIF
+  IF (!QSFIT_OPT.oiii_5007_bluewing) THEN tmp += ' + cc.line_OIII_5007_bw'
+  IF (!QSFIT_OPT.oiii_4959_bluewing) THEN tmp += ' + cc.line_OIII_4959_bw'
   gfit_add_aux, 'expr_NarrowLines', tmp
 
   gfit.obs.(0).aux.expr_narrowlines.plot.label = 'Narrow'
@@ -2386,10 +2413,16 @@ FUNCTION qsfit_reduce
   out = CREATE_STRUCT(out, 'line_ha_base', tmp)
   alllines = [alllines, gstru_insert(tmp, 'line', 'line_ha_base', 0)]
 
-  IF (!QSFIT_OPT.oiii5007_bluewing) THEN BEGIN
-     tmp = qsfit_reduce_line( 'line_oiii_bw', gfit.comp.line_oiii_bw.par.center.val, /noassoc)
-     out = CREATE_STRUCT(out, 'line_oiii_bw', tmp)
-     alllines = [alllines, gstru_insert(tmp, 'line', 'line_oiii_bw', 0)]
+  IF (!QSFIT_OPT.oiii_5007_bluewing) THEN BEGIN
+     tmp = qsfit_reduce_line( 'line_oiii_5007_bw', gfit.comp.line_oiii_5007_bw.par.center.val, /noassoc)
+     out = CREATE_STRUCT(out, 'line_oiii_5007_bw', tmp)
+     alllines = [alllines, gstru_insert(tmp, 'line', 'line_oiii_5007_bw', 0)]
+  ENDIF
+
+  IF (!QSFIT_OPT.oiii_4959_bluewing) THEN BEGIN
+     tmp = qsfit_reduce_line( 'line_oiii_4959_bw', gfit.comp.line_oiii_4959_bw.par.center.val, /noassoc)
+     out = CREATE_STRUCT(out, 'line_oiii_4959_bw', tmp)
+     alllines = [alllines, gstru_insert(tmp, 'line', 'line_oiii_4959_bw', 0)]
   ENDIF
 
   ;;Save also all the lines results as an array

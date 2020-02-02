@@ -1,3 +1,13 @@
+- Development version  (ver. 1.4.0)
+	+ A new component to accout for the [OIII]4959 blue wing is
+	available.  The name is `line_oiii_4959_bw`.  It is disabled by
+	default, enable it with `!QSFIT_OPT.oiii_4959_bluewing = 1`;
+
+	+ Component `line_oiii_bw` has been renamed to `line_oiii_5007_bw`;
+
+	+ Bugfix in reducing data for the [OIII] blue wing component;
+
+
 - Mar. 11, 2019  (ver. 1.3.0)
 	+ The code has been largely refactored to implement the new
 	features, performance has improved, and a couple of emission lines
