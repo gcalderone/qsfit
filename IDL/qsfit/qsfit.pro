@@ -319,8 +319,11 @@ FUNCTION qsfit_input, x, y, e, TYPE=type, ID=id, Z=z, EBV=ebv
   IF (z LT 0) THEN MESSAGE, 'Redshift is negative: ' + gn2s(z)
   IF (gn(good) EQ 0) THEN good = REPLICATE(1, gn(xx))
 
-  IF (gsearch(xx LE !QSFIT_OPT.min_wavelength, i)) THEN BEGIN
-     good[i] = 0
+  IF (gsearch(xx GE !QSFIT_OPT.min_wavelength * (1+z), i)) THEN BEGIN
+     xx = xx[i]
+     yy = yy[i]
+     ee = ee[i]
+     good = good[i]
   ENDIF
 
   file = STRSPLIT(file, PATH_SEP(), /extract)
