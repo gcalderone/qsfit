@@ -1,5 +1,9 @@
 # QSFit
 
+
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.7629196.svg)](https://doi.org/10.5281/zenodo.7629196)
+
+
 **QSFit** (Quasar Spectral Fitting) is a software package written in IDL to automatically perform the analysis of Active Galactic Nuclei (AGN) optical spectra. The software provides luminosity estimates for the AGN continuum, the Balmer continuum, both optical and UV iron
 blended complex, host galaxy and emission lines, as well as width, velocity offset and equivalent width of 20 emission lines (Halpha, Hbeta, Mgii, [Oiii], Civ, etc.).  The ultimate purpose of **QSFit** is to allow astronomers to run standardized recipes to analyze the AGN
 data, in a simple, replicable and shareable way. The whole fitting process is customizable for specific needs, and can be extended to analyze spectra from other data sources.
